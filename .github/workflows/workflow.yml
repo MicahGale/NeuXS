@@ -24,7 +24,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          export OPENMC_INSTALL_DIR=~/openmc/build
+          export OPENMC_BUILD_DIR=~/OpenMC/build/
+          export OPENMC_SOURCE_DIR=~/OpenMC/openmc/include
           mkdir build
           cd build
           cmake .. 
