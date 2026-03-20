@@ -1,6 +1,3 @@
-#this section mostly uses already installed cardinal.
-#mostly for my own machine
-
 set(OPENMC_INSTALL_DIR "$ENV{OPENMC_INSTALL_DIR}")
 
 find_package(HDF5 REQUIRED)
