@@ -1,0 +1,31 @@
+name: enrico_fermi
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    container:
+      image: openmc/openmc:develop-libmesh
+
+    steps:
+      - name: update and install cuda compiler
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y nvidia-cuda-toolkit
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build
+        shell: bash
+        run: |
+          source /environment
+          mkdir build
+          cd build
+          cmake .. 
+          make -j $(nproc)
