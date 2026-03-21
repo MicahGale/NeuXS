@@ -8,25 +8,30 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    container:
-      image: openmc/openmc:develop-libmesh
 
     steps:
       - name: update and install cuda compiler
         shell: bash
         run: |
-          apt-get update
-          apt-get install -y nvidia-cuda-toolkit
+          sudo apt-get update
+          sudo apt-get install -y nvidia-cuda-toolkit
+          sudo apt-get install libhdf5-dev
 
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - name: Build
         shell: bash
         run: |
-          export OPENMC_BUILD_DIR=~/OpenMC/build/
-          export OPENMC_SOURCE_DIR=~/OpenMC/openmc/include
           mkdir build
           cd build
           cmake .. 
           make -j $(nproc)
+
+      - name: run_tests
+        shell: bash
+        run: |
+          cd  build/tests/
+          ./test_load_openmc
