@@ -1,0 +1,4 @@
+#ifndef NEUXS_MEMORY_CUH
+#define NEUXS_MEMORY_CUH
+
+#endif //NEUXS_MEMORY_CUH
