@@ -1,0 +1,37 @@
+name: enrico_fermi
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: update and install cuda compiler
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nvidia-cuda-toolkit
+          sudo apt-get install libhdf5-dev
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Build
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          cmake .. 
+          make -j $(nproc)
+
+      - name: run_tests
+        shell: bash
+        run: |
+          cd  build/tests/
+          ./test_load_openmc

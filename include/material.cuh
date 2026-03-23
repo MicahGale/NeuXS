@@ -1,0 +1,4 @@
+#ifndef NEUXS_MATERIAL_H
+#define NEUXS_MATERIAL_H
+
+#endif //NEUXS_MATERIAL_H
