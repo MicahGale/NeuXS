@@ -1,7 +1,6 @@
 #include <stdexcept>
 
 #include "geometry.cuh"
-#include "fmtmsg.h"
 
 
 namespace neuxs {
@@ -44,7 +43,7 @@ namespace neuxs {
         /*
          * auto sigma_t = _material->getTotalCrossSection(particle_energy);
          * auto escape_prob = 1 - exp(- sigma_t * some_value_proportional_to_volume )
-         * in that way higher volumetric cell would have lesser escape probability
+         * in that way higher volume cell would have lesser escape probability
          * */
 
         unsigned int idx = static_cast<unsigned int>(random_number * _num_neighbors);
