@@ -22,7 +22,9 @@ namespace neuxs {
 
         void __host__ checkNeighboringCellIDs();
 
-        __device__ Cell* getRandomNeighborCell(float particle_energy);
+        bool __device__ particleEscapesTheCell(float particle_energy);
+
+        Cell* __device__  getRandomNeighborCell(float particle_energy);
 
         const Material* getMaterial() const;
     };
