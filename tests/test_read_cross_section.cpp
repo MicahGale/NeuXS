@@ -5,7 +5,7 @@
 
 int main() {
 
-    const std::string cross_section_dir = "../tests/cross_section_files";
+    const std::string cross_section_dir = "../../tests/cross_section_files";
 
     neuxs::OpenMCCrossSectionReader reader(cross_section_dir);
 
