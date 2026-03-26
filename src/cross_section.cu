@@ -19,8 +19,7 @@ namespace neuxs{
         auto data = readDataPointsFromFile(isotope_name, "", temperature, CrossSectionDataType::ENERGY);
 
         thrust::host_vector<float> result(data.size());
-        std::transform(data.begin(), data.end(), result.begin(),
-                       [](double d) { return static_cast<float>(d); });
+        std::transform(data.begin(), data.end(), result.begin(), [](double d) { return static_cast<float>(d); });
 
         return result;
     }
@@ -40,8 +39,7 @@ namespace neuxs{
         auto data = readDataPointsFromFile(isotope_name, reaction_name, temperature, data_type);
 
         thrust::host_vector<float> result(data.size());
-        std::transform(data.begin(), data.end(), result.begin(),
-                       [](float d) { return static_cast<float>(d); });
+        std::transform(data.begin(), data.end(), result.begin(), [](float d) { return static_cast<float>(d); });
 
         return result;
     }

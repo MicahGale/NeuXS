@@ -35,3 +35,4 @@ jobs:
         run: |
           cd  build/tests/
           ./test_load_openmc
+          ./test_read_cross_section

@@ -2,7 +2,6 @@ enable_testing()
 
 file(GLOB TEST_SOURCES CONFIGURE_DEPENDS *.cpp *.cxx *.c *.C *.cu)
 
-
 # executable for every test
 
 foreach(TEST_SOURCE ${TEST_SOURCES})
