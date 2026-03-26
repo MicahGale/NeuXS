@@ -1,2 +1,5 @@
 add_executable(example_geometry build_geometry.cu)
 target_link_libraries(example_geometry PRIVATE neuxslib)
+
+add_executable(cross_section  read_cross_section.cpp)
+target_link_libraries(cross_section PRIVATE neuxslib)
