@@ -49,8 +49,13 @@ namespace neuxs{
 
     struct CrossSectionGridPoint{
 
-        CrossSectionGridPoint(float energy, float _sigma_s, float sigma_f,
-                              float sigma_t, float sigma_g );
+        CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
+                              float sigma_t, float sigma_g ):
+                              _energy(energy),
+                              _sigma_s(sigma_s),
+                              _sigma_f(sigma_f),
+                              _sigma_t(sigma_t),
+                              _sigma_g(sigma_g){}
         float _energy;
         float _sigma_s;
         float _sigma_f;
@@ -65,8 +70,18 @@ namespace neuxs{
      */
     struct NuclideCrossSection{
 
+        NuclideCrossSection(const unsigned int material_id,const std::vector<float>energy,
+                            const std::vector<float> sigma_s, const std::vector<float> sigma_f,
+                            const std::vector<float> sigma_t, const std::vector<float> sigma_g);
+
+        // check that length of every array are same.
+
+        void preCheck(const std::vector<float>energy,
+                      const std::vector<float> sigma_s, const std::vector<float> sigma_f,
+                      const std::vector<float> sigma_t, const std::vector<float> sigma_g);
+
         unsigned int _material_id;
-        thrust::device_vector<CrossSectionGridPoint> _cross_section_grids;
+        thrust::host_vector<CrossSectionGridPoint> _cross_section_grids;
     };
 
     __device__ void  binary_search(float* particle_energy,unsigned int material_id, CrossSectionDataType reaction_type, float * cross_section);

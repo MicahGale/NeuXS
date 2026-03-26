@@ -127,4 +127,36 @@ namespace neuxs{
         }
 
     }
+
+
+    NuclideCrossSection::NuclideCrossSection(const unsigned int material_id, const std::vector<float> energy,
+                                             const std::vector<float> sigma_s, const std::vector<float> sigma_f,
+                                             const std::vector<float> sigma_t, const std::vector<float> sigma_g) {
+        preCheck( energy, sigma_s,  sigma_f, sigma_t, sigma_g);
+
+        _material_id = material_id;
+        const auto size = energy.size();
+        _cross_section_grids.reserve(size);
+
+        for (size_t i=0; i<size; i++)
+            _cross_section_grids.push_back(
+                    CrossSectionGridPoint(energy[i],
+                                          sigma_s[i],
+                                          sigma_f[i],
+                                          sigma_t[i],
+                                          sigma_g[i])
+                                          );
+
+        _cross_section_grids.shrink_to_fit();
+    }
+
+
+    void NuclideCrossSection::preCheck(const std::vector<float> energy, const std::vector<float> sigma_s,
+                                       const std::vector<float> sigma_f, const std::vector<float> sigma_t,
+                                       const std::vector<float> sigma_g) {
+
+        const bool check = energy.size() == sigma_s.size() == sigma_f.size() == sigma_t.size() == sigma_g.size();
+        if (!check)
+            throw std::runtime_error(" Invalid cross section data point. Size of reaction data don't match with each other");
+    }
 };
