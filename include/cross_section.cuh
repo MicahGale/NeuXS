@@ -6,10 +6,7 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
-#include "openmc/cross_sections.h"
-#include "openmc/reaction.h"
 #include "hdf5.h"
-
 #include "material.cuh"
 
 
