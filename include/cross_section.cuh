@@ -44,7 +44,7 @@ namespace neuxs{
         void validateInputs(const std::string& isotope_name, float temperature) const;
 
         const std::string cross_section_dir_;
-        static constexpr std::string_view CROSS_SECTION_TYPE = "neutron";
+        static constexpr std::string_view PARTICLE_TYPE = "neutron";
     };
 
 
