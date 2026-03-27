@@ -2,161 +2,172 @@
 #include "openmc/reaction.h"
 #include <algorithm>
 
+namespace neuxs {
 
-namespace neuxs{
+OpenMCCrossSectionReader::OpenMCCrossSectionReader(
+    std::string cross_section_dir)
+    : cross_section_dir_(std::move(cross_section_dir)) {
+  if (cross_section_dir_.empty()) {
+    throw std::invalid_argument("Cross-section path cannot be empty");
+  }
+}
 
-    OpenMCCrossSectionReader::OpenMCCrossSectionReader(std::string cross_section_dir)
-            : cross_section_dir_(std::move(cross_section_dir)) {
-        if (cross_section_dir_.empty()) {
-            throw std::invalid_argument("Cross-section path cannot be empty");
-        }
-    }
+thrust::host_vector<float>
+OpenMCCrossSectionReader::getEnergyDataPoints(const std::string &isotope_name,
+                                              float temperature) {
 
-    thrust::host_vector<float> OpenMCCrossSectionReader::getEnergyDataPoints( const std::string& isotope_name, float temperature) {
+  validateInputs(isotope_name, temperature);
 
-        validateInputs(isotope_name, temperature);
+  auto data = readDataPointsFromFile(isotope_name, "", temperature,
+                                     CrossSectionDataType::ENERGY);
 
-        auto data = readDataPointsFromFile(isotope_name, "", temperature, CrossSectionDataType::ENERGY);
+  thrust::host_vector<float> result(data.size());
+  std::transform(data.begin(), data.end(), result.begin(),
+                 [](double d) { return static_cast<float>(d); });
 
-        thrust::host_vector<float> result(data.size());
-        std::transform(data.begin(), data.end(), result.begin(), [](double d) { return static_cast<float>(d); });
+  return result;
+}
 
-        return result;
-    }
+thrust::host_vector<float> OpenMCCrossSectionReader::getCrossSectionDataPoints(
+    const std::string &isotope_name, float temperature,
+    CrossSectionDataType data_type, const std::string &reaction_name) {
 
-    thrust::host_vector<float> OpenMCCrossSectionReader::getCrossSectionDataPoints( const std::string& isotope_name,float temperature,
-                                                                                    CrossSectionDataType data_type, const std::string& reaction_name) {
+  if (data_type == CrossSectionDataType::ENERGY)
+    throw std::invalid_argument("Use getEnergyDataPoints for ENERGY data type");
 
-        if (data_type == CrossSectionDataType::ENERGY)
-            throw std::invalid_argument("Use getEnergyDataPoints for ENERGY data type");
+  if (reaction_name.empty())
+    throw std::invalid_argument("Reaction name cannot be empty");
 
-        if (reaction_name.empty())
-            throw std::invalid_argument("Reaction name cannot be empty");
+  validateInputs(isotope_name, temperature);
 
+  auto data = readDataPointsFromFile(isotope_name, reaction_name, temperature,
+                                     data_type);
 
-        validateInputs(isotope_name, temperature);
+  thrust::host_vector<float> result(data.size());
+  std::transform(data.begin(), data.end(), result.begin(),
+                 [](float d) { return static_cast<float>(d); });
 
-        auto data = readDataPointsFromFile(isotope_name, reaction_name, temperature, data_type);
+  return result;
+}
 
-        thrust::host_vector<float> result(data.size());
-        std::transform(data.begin(), data.end(), result.begin(), [](float d) { return static_cast<float>(d); });
+std::vector<float> OpenMCCrossSectionReader::readDataPointsFromFile(
+    const std::string &isotope_name, const std::string &reaction_name,
+    float temperature, CrossSectionDataType data_type) {
 
-        return result;
-    }
+  std::string file_path = buildFilePath(isotope_name);
+  hid_t file_id = H5Fopen(file_path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
 
-    std::vector<float> OpenMCCrossSectionReader::readDataPointsFromFile(const std::string& isotope_name,
-                                                                        const std::string& reaction_name, float temperature,
-                                                                        CrossSectionDataType data_type) {
+  if (file_id < 0) {
+    throw std::runtime_error("Failed to open file: " + file_path);
+  }
 
-        std::string file_path = buildFilePath(isotope_name);
-        hid_t file_id = H5Fopen(file_path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+  int mt_number = 0;
+  if (data_type != CrossSectionDataType::ENERGY) {
+    mt_number = openmc::reaction_mt(reaction_name);
+  }
 
-        if (file_id < 0) {
-            throw std::runtime_error("Failed to open file: " + file_path);
-        }
+  std::string dataset_path =
+      isotope_name + buildDatasetPath(temperature, data_type, mt_number);
+  hid_t dataset_id = H5Dopen(file_id, dataset_path.c_str(), H5P_DEFAULT);
 
-        int mt_number = 0;
-        if (data_type != CrossSectionDataType::ENERGY) {
-            mt_number = openmc::reaction_mt(reaction_name);
-        }
+  if (dataset_id < 0) {
+    H5Fclose(file_id);
+    throw std::runtime_error("Failed to open dataset: " + dataset_path);
+  }
 
-        std::string dataset_path = isotope_name + buildDatasetPath(temperature, data_type, mt_number);
-        hid_t dataset_id = H5Dopen(file_id, dataset_path.c_str(), H5P_DEFAULT);
+  hid_t dataspace_id = H5Dget_space(dataset_id);
 
-        if (dataset_id < 0) {
-            H5Fclose(file_id);
-            throw std::runtime_error("Failed to open dataset: " + dataset_path);
-        }
+  int n_dims = H5Sget_simple_extent_ndims(dataspace_id);
+  std::vector<hsize_t> dims(n_dims);
+  H5Sget_simple_extent_dims(dataspace_id, dims.data(), nullptr);
 
-        hid_t dataspace_id = H5Dget_space(dataset_id);
+  size_t total_size = 1;
+  for (auto d : dims) {
+    total_size *= d;
+  }
 
-        int n_dims = H5Sget_simple_extent_ndims(dataspace_id);
-        std::vector<hsize_t> dims(n_dims);
-        H5Sget_simple_extent_dims(dataspace_id, dims.data(), nullptr);
+  std::vector<float> data(total_size);
+  herr_t status = H5Dread(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL,
+                          H5P_DEFAULT, data.data());
 
-        size_t total_size = 1;
-        for (auto d : dims) {
-            total_size *= d;
-        }
+  H5Sclose(dataspace_id);
+  H5Dclose(dataset_id);
+  H5Fclose(file_id);
 
-        std::vector<float> data(total_size);
-        herr_t status = H5Dread(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, data.data());
+  if (status < 0) {
+    throw std::runtime_error("Failed to read dataset");
+  }
 
-        H5Sclose(dataspace_id);
-        H5Dclose(dataset_id);
-        H5Fclose(file_id);
+  return data;
+}
 
-        if (status < 0) {
-            throw std::runtime_error("Failed to read dataset");
-        }
+std::string
+OpenMCCrossSectionReader::buildFilePath(const std::string &isotope_name) const {
+  return cross_section_dir_ + "/" + isotope_name + ".h5";
+}
 
-        return data;
-    }
+std::string OpenMCCrossSectionReader::buildDatasetPath(
+    float temperature, CrossSectionDataType data_type, int mt_number) const {
 
-    std::string OpenMCCrossSectionReader::buildFilePath(const std::string& isotope_name) const {
-        return cross_section_dir_ + "/" + isotope_name + ".h5";
-    }
+  std::string temp_str = std::to_string(static_cast<int>(temperature)) + "K";
 
-    std::string OpenMCCrossSectionReader::buildDatasetPath( float temperature, CrossSectionDataType data_type, int mt_number) const {
+  if (data_type == CrossSectionDataType::ENERGY)
+    return "/energy/" + temp_str;
 
-        std::string temp_str = std::to_string(static_cast<int>(temperature)) + "K";
+  // I miss python now :)
+  std::string mt_number_converted_to_string;
+  if (mt_number < 10)
+    mt_number_converted_to_string = "00" + std::to_string(mt_number);
+  else if (10 < mt_number and mt_number < 100)
+    mt_number_converted_to_string = "0" + std::to_string(mt_number);
+  else
+    mt_number_converted_to_string = std::to_string(mt_number);
 
-        if (data_type == CrossSectionDataType::ENERGY)
-            return "/energy/" + temp_str;
+  return "/reactions/reaction_" + mt_number_converted_to_string + "/" +
+         temp_str + "/xs";
+}
 
-        // I miss python now :)
-        std::string mt_number_converted_to_string;
-        if (mt_number<10)
-            mt_number_converted_to_string = "00"+std::to_string(mt_number);
-        else if (10<mt_number and mt_number<100)
-            mt_number_converted_to_string = "0"+std::to_string(mt_number);
-        else
-            mt_number_converted_to_string = std::to_string(mt_number);
+void OpenMCCrossSectionReader::validateInputs(const std::string &isotope_name,
+                                              float temperature) const {
 
-        return "/reactions/reaction_" + mt_number_converted_to_string +"/"+ temp_str+"/xs";
-    }
+  if (isotope_name.empty()) {
+    throw std::invalid_argument("Isotope name cannot be empty");
+  }
 
-    void OpenMCCrossSectionReader::validateInputs( const std::string& isotope_name, float temperature) const {
+  if (temperature < 0.0f) {
+    throw std::invalid_argument("Temperature must be positive");
+  }
+}
 
-        if (isotope_name.empty()) {
-            throw std::invalid_argument("Isotope name cannot be empty");
-        }
+NuclideCrossSection::NuclideCrossSection(const unsigned int material_id,
+                                         const std::vector<float> energy,
+                                         const std::vector<float> sigma_s,
+                                         const std::vector<float> sigma_f,
+                                         const std::vector<float> sigma_t,
+                                         const std::vector<float> sigma_g) {
+  preCheck(energy, sigma_s, sigma_f, sigma_t, sigma_g);
 
-        if (temperature < 0.0f) {
-            throw std::invalid_argument("Temperature must be positive");
-        }
+  _material_id = material_id;
+  const auto size = energy.size();
+  _cross_section_grids.reserve(size);
 
-    }
+  for (size_t i = 0; i < size; i++)
+    _cross_section_grids.push_back(CrossSectionGridPoint(
+        energy[i], sigma_s[i], sigma_f[i], sigma_t[i], sigma_g[i]));
 
+  _cross_section_grids.shrink_to_fit();
+}
 
-    NuclideCrossSection::NuclideCrossSection(const unsigned int material_id, const std::vector<float> energy,
-                                             const std::vector<float> sigma_s, const std::vector<float> sigma_f,
-                                             const std::vector<float> sigma_t, const std::vector<float> sigma_g) {
-        preCheck( energy, sigma_s,  sigma_f, sigma_t, sigma_g);
+void NuclideCrossSection::preCheck(const std::vector<float> energy,
+                                   const std::vector<float> sigma_s,
+                                   const std::vector<float> sigma_f,
+                                   const std::vector<float> sigma_t,
+                                   const std::vector<float> sigma_g) {
 
-        _material_id = material_id;
-        const auto size = energy.size();
-        _cross_section_grids.reserve(size);
-
-        for (size_t i=0; i<size; i++)
-            _cross_section_grids.push_back(
-                    CrossSectionGridPoint(energy[i],
-                                          sigma_s[i],
-                                          sigma_f[i],
-                                          sigma_t[i],
-                                          sigma_g[i])
-                                          );
-
-        _cross_section_grids.shrink_to_fit();
-    }
-
-
-    void NuclideCrossSection::preCheck(const std::vector<float> energy, const std::vector<float> sigma_s,
-                                       const std::vector<float> sigma_f, const std::vector<float> sigma_t,
-                                       const std::vector<float> sigma_g) {
-
-        const bool check = energy.size() == sigma_s.size() == sigma_f.size() == sigma_t.size() == sigma_g.size();
-        if (!check)
-            throw std::runtime_error(" Invalid cross section data point. Size of reaction data don't match with each other");
-    }
-};
+  const bool check = energy.size() == sigma_s.size() == sigma_f.size() ==
+                     sigma_t.size() == sigma_g.size();
+  if (!check)
+    throw std::runtime_error(" Invalid cross section data point. Size of "
+                             "reaction data don't match with each other");
+}
+}; // namespace neuxs

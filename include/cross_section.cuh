@@ -3,96 +3,104 @@
 
 #include <cuda_runtime.h>
 #include <string>
-#include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 #include "hdf5.h"
 #include "material.cuh"
 
+namespace neuxs {
 
+enum class CrossSectionDataType {
+  ENERGY,
+  SCATTERING,
+  ABSORPTION,
+  FISSION,
+  CAPTURE,
+  TOTAL
+};
 
-namespace neuxs{
+/*A wrapper class around for reading HDF5 cross-section data
+ * mostly using hfd5 and openmc api */
+class OpenMCCrossSectionReader {
+public:
+  explicit OpenMCCrossSectionReader(std::string cross_section_dir);
 
+  thrust::host_vector<float>
+  getEnergyDataPoints(const std::string &isotope_name, float temperature);
+  thrust::host_vector<float>
+  getCrossSectionDataPoints(const std::string &isotope_name, float temperature,
+                            CrossSectionDataType data_type,
+                            const std::string &reaction_name);
 
-    enum class CrossSectionDataType {
-        ENERGY,
-        SCATTERING,
-        ABSORPTION,
-        FISSION,
-        CAPTURE,
-        TOTAL
-    };
+private:
+  // Do I need to set the return type to host vector as well?
+  // I need to ask Micah what he thinks.
+  std::vector<float> readDataPointsFromFile(const std::string &isotope_name,
+                                            const std::string &reaction_name,
+                                            float temperature,
+                                            CrossSectionDataType data_type);
+  std::string buildFilePath(const std::string &isotope_name) const;
+  std::string buildDatasetPath(float temperature,
+                               CrossSectionDataType data_type,
+                               int mt_number) const;
+  void validateInputs(const std::string &isotope_name, float temperature) const;
 
-    /*A wrapper class around for reading HDF5 cross-section data
-     * mostly using hfd5 and openmc api */
-    class OpenMCCrossSectionReader {
-    public:
-        explicit OpenMCCrossSectionReader(std::string cross_section_dir);
+  const std::string cross_section_dir_;
+  static constexpr std::string_view PARTICLE_TYPE = "neutron";
+};
 
-        thrust::host_vector<float> getEnergyDataPoints( const std::string& isotope_name, float temperature);
-        thrust::host_vector<float> getCrossSectionDataPoints( const std::string& isotope_name, float temperature, CrossSectionDataType data_type, const std::string& reaction_name);
+struct CrossSectionGridPoint {
 
-    private:
-        // Do I need to set the return type to host vector as well?
-        // I need to ask Micah what he thinks.
-        std::vector<float> readDataPointsFromFile( const std::string& isotope_name, const std::string& reaction_name, float temperature, CrossSectionDataType data_type);
-        std::string buildFilePath(const std::string& isotope_name) const;
-        std::string buildDatasetPath(float temperature, CrossSectionDataType data_type, int mt_number) const;
-        void validateInputs(const std::string& isotope_name, float temperature) const;
+  CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
+                        float sigma_t, float sigma_g)
+      : _energy(energy), _sigma_s(sigma_s), _sigma_f(sigma_f),
+        _sigma_t(sigma_t), _sigma_g(sigma_g) {}
+  float _energy;
+  float _sigma_s;
+  float _sigma_f;
+  float _sigma_t;
+  float _sigma_g;
+};
 
-        const std::string cross_section_dir_;
-        static constexpr std::string_view PARTICLE_TYPE = "neutron";
-    };
+/*array of struct.
+ * A future todo note for us: We will come back and
+ * implement struct of array data structure as well
+ */
+struct NuclideCrossSection {
 
+  NuclideCrossSection(const unsigned int material_id,
+                      const std::vector<float> energy,
+                      const std::vector<float> sigma_s,
+                      const std::vector<float> sigma_f,
+                      const std::vector<float> sigma_t,
+                      const std::vector<float> sigma_g);
 
+  // check that length of every array are same.
 
+  void preCheck(const std::vector<float> energy,
+                const std::vector<float> sigma_s,
+                const std::vector<float> sigma_f,
+                const std::vector<float> sigma_t,
+                const std::vector<float> sigma_g);
 
-    struct CrossSectionGridPoint{
+  unsigned int _material_id;
+  thrust::host_vector<CrossSectionGridPoint> _cross_section_grids;
+};
 
-        CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
-                              float sigma_t, float sigma_g ):
-                              _energy(energy),
-                              _sigma_s(sigma_s),
-                              _sigma_f(sigma_f),
-                              _sigma_t(sigma_t),
-                              _sigma_g(sigma_g){}
-        float _energy;
-        float _sigma_s;
-        float _sigma_f;
-        float _sigma_t;
-        float _sigma_g;
+__device__ void binary_search(float *particle_energy, unsigned int material_id,
+                              CrossSectionDataType reaction_type,
+                              float *cross_section);
 
-    };
+__host__ void
+    build_nuclide_grid(/*some argument but I am just a place-holder for now*/);
 
-    /*array of struct.
-     * A future todo note for us: We will come back and
-     * implement struct of array data structure as well
-     */
-    struct NuclideCrossSection{
+__device__ CrossSectionGridPoint
+interpolate(CrossSectionGridPoint *grid_point_a,
+            const CrossSectionGridPoint *grid_point_b);
 
-        NuclideCrossSection(const unsigned int material_id,const std::vector<float>energy,
-                            const std::vector<float> sigma_s, const std::vector<float> sigma_f,
-                            const std::vector<float> sigma_t, const std::vector<float> sigma_g);
+__host__ void transfer_cross_section_data_to_device(unsigned int nuclide_index);
 
-        // check that length of every array are same.
+} // namespace neuxs
 
-        void preCheck(const std::vector<float>energy,
-                      const std::vector<float> sigma_s, const std::vector<float> sigma_f,
-                      const std::vector<float> sigma_t, const std::vector<float> sigma_g);
-
-        unsigned int _material_id;
-        thrust::host_vector<CrossSectionGridPoint> _cross_section_grids;
-    };
-
-    __device__ void  binary_search(float* particle_energy,unsigned int material_id, CrossSectionDataType reaction_type, float * cross_section);
-
-    __host__ void  build_nuclide_grid(/*some argument but I am just a place-holder for now*/ );
-
-    __device__ CrossSectionGridPoint interpolate(CrossSectionGridPoint* grid_point_a, const CrossSectionGridPoint* grid_point_b);
-
-    __host__ void  transfer_cross_section_data_to_device(unsigned int nuclide_index);
-
-
-}
-
-#endif //NEUXS_CROSS_SECTION_CUH
+#endif // NEUXS_CROSS_SECTION_CUH
