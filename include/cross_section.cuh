@@ -14,7 +14,6 @@ namespace neuxs {
 enum class CrossSectionDataType {
   ENERGY,
   SCATTERING,
-  ABSORPTION,
   FISSION,
   CAPTURE,
   TOTAL
@@ -36,7 +35,7 @@ public:
 private:
   // Do I need to set the return type to host vector as well?
   // I need to ask Micah what he thinks.
-  std::vector<float> readDataPointsFromFile(const std::string &isotope_name,
+  std::vector<float> readDataPointFromFile(const std::string &isotope_name,
                                             const std::string &reaction_name,
                                             float temperature,
                                             CrossSectionDataType data_type);
@@ -53,28 +52,28 @@ private:
 struct CrossSectionGridPoint {
 
   CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
-                        float sigma_t, float sigma_g)
+                        float sigma_t, float sigma_c)
       : _energy(energy), _sigma_s(sigma_s), _sigma_f(sigma_f),
-        _sigma_t(sigma_t), _sigma_g(sigma_g) {}
+        _sigma_t(sigma_t), _sigma_c(sigma_c) {}
   float _energy;
   float _sigma_s;
   float _sigma_f;
   float _sigma_t;
-  float _sigma_g;
+    float _sigma_c;
 };
 
 /*array of struct.
  * A future todo note for us: We will come back and
  * implement struct of array data structure as well
  */
-struct NuclideCrossSection {
+    struct NuclideCrossSectionSet {
 
-  NuclideCrossSection(const unsigned int material_id,
+        NuclideCrossSectionSet(const unsigned int material_id,
                       const std::vector<float> energy,
                       const std::vector<float> sigma_s,
                       const std::vector<float> sigma_f,
                       const std::vector<float> sigma_t,
-                      const std::vector<float> sigma_g);
+                               const std::vector<float> sigma_c);
 
   // check that length of every array are same.
 
@@ -82,16 +81,27 @@ struct NuclideCrossSection {
                 const std::vector<float> sigma_s,
                 const std::vector<float> sigma_f,
                 const std::vector<float> sigma_t,
-                const std::vector<float> sigma_g);
+                const std::vector<float> sigma_c);
 
   unsigned int _material_id;
   thrust::host_vector<CrossSectionGridPoint> _cross_section_grids;
 };
 
-__device__ void binary_search(float *particle_energy, unsigned int material_id,
+    __device__ void energy_binary_search(float *particle_energy, unsigned int material_id,
                               CrossSectionDataType reaction_type,
                               float *cross_section);
 
+/*This builds a 2D hashmap of the nuclides, and it's associated energy grid
+ *
+ * Nuclides/NuclideCrossSectionSets
+ * N1 --E1---E2--E3--E4--E4
+ * N2 --E1---E2--E4
+ * N3 --E1--E3--E4
+ *
+ * This could be an acceleration technique when we sample reaction types.
+ * We can do binary search for one nuclide get the energy grid index and use that to look
+ * up cross-section for other nuclides.
+ */
 __host__ void
     build_nuclide_grid(/*some argument but I am just a place-holder for now*/);
 
