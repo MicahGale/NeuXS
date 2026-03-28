@@ -103,7 +103,7 @@ struct CrossSectionGridPoint {
  * up cross-section for other nuclides.
  */
 __host__ void
-    build_nuclide_grid(/*some argument but I am just a place-holder for now*/);
+    build_nuclide_energy_grids(/*some argument but I am just a place-holder for now*/);
 
 __device__ CrossSectionGridPoint
 interpolate(CrossSectionGridPoint *grid_point_a,
