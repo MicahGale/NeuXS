@@ -25,6 +25,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
+          cd FinalProject
           mkdir build
           cd build
           cmake .. 
@@ -33,5 +34,5 @@ jobs:
       - name: run_tests
         shell: bash
         run: |
-          cd  build/tests/
+          cd  FinalProject/build/tests/
           ./test_load_openmc
