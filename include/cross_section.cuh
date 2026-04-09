@@ -60,21 +60,21 @@ struct CrossSectionGridPoint {
   CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
                         float sigma_t, float sigma_c)
       : _energy(energy), _sigma_s(sigma_s), _sigma_f(sigma_f),
-        _sigma_t(sigma_t), _sigma_c(sigma_c) {}
+      _sigma_c(sigma_c),_sigma_t(sigma_t){}
 
   // adding another constructor that automatically sets the total cross-section
   CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
                         float sigma_c)
       : _energy(energy), _sigma_s(sigma_s), _sigma_f(sigma_f),
         _sigma_c(sigma_c) {
-    _sigma_t = _sigma_c + sigma_f + sigma_s;
+    _sigma_t = _sigma_c + _sigma_f + _sigma_s;
   }
 
   float _energy;
   float _sigma_s;
   float _sigma_f;
-  float _sigma_t;
   float _sigma_c;
+  float _sigma_t;
 };
 
 /*array of struct.
