@@ -3,7 +3,6 @@
 
 #include <cuda_runtime.h>
 #include <string>
-#include <unordered_map>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
@@ -12,29 +11,20 @@
 
 namespace neuxs {
 
+enum class CrossSectionDataType { Energy, Elastic, Capture, Fission, Total };
 
-    enum class CrossSectionDataType {
-        Energy,
-        Elastic,
-        Capture,
-        Fission,
-        Total
-    };
-
-    static std::unordered_map<CrossSectionDataType, int> MTNumberMap{
-            {CrossSectionDataType::Elastic, 2},
-            {CrossSectionDataType::Capture, 102},
-            {CrossSectionDataType::Fission, 18},
-    };
-
-    __host__ inline int getMTNumber(CrossSectionDataType type) {
-        switch (type) {
-            case CrossSectionDataType::Elastic: return 2;
-            case CrossSectionDataType::Capture: return 102;
-            case CrossSectionDataType::Fission: return 18;
-            default: return -1;
-        }
-    }
+__host__ inline int getMTNumber(CrossSectionDataType type) {
+  switch (type) {
+  case CrossSectionDataType::Elastic:
+    return 2;
+  case CrossSectionDataType::Capture:
+    return 102;
+  case CrossSectionDataType::Fission:
+    return 18;
+  default:
+    return -1;
+  }
+}
 
 /*A wrapper class around for reading HDF5 cross-section data
  * mostly using hfd5 and openmc api */
@@ -45,9 +35,9 @@ public:
   std::vector<float> getEnergyDataPoints(const std::string &isotope_name,
                                          float temperature);
 
-  std::vector<float>
-  getCrossSectionDataPoints(const std::string &isotope_name, float temperature,
-                            CrossSectionDataType data_type);
+  std::vector<float> getCrossSectionDataPoints(const std::string &isotope_name,
+                                               float temperature,
+                                               CrossSectionDataType data_type);
 
   // Do I need to set the return type to host vector as well?
   // I need to ask Micah what he thinks.

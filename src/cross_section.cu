@@ -32,8 +32,6 @@ std::vector<float> OpenMCCrossSectionReader::getCrossSectionDataPoints(
   if (data_type == CrossSectionDataType::Energy)
     throw std::invalid_argument("Use getEnergyDataPoints for Energy data type");
 
-
-
   validateInputs(isotope_name, temperature);
 
   auto data = readDataPointFromFile(isotope_name, temperature,data_type);
