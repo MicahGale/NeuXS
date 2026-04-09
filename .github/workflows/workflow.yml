@@ -19,8 +19,7 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          submodules: recursive
+
 
       - name: Build
         shell: bash
@@ -34,4 +33,4 @@ jobs:
         shell: bash
         run: |
           cd  build/tests/
-          ./test_load_openmc
+          ./load_neuxs

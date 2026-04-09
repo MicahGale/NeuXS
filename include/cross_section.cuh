@@ -11,7 +11,20 @@
 
 namespace neuxs {
 
-enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
+  enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
+
+__host__ inline int getMTNumber(CrossSectionDataType type) {
+  switch (type) {
+  case CrossSectionDataType::SCATTERING:
+    return 2;
+  case CrossSectionDataType::CAPTURE:
+    return 102;
+  case CrossSectionDataType::FISSION:
+    return 18;
+  default:
+    return -1;
+  }
+}
 
 /*A wrapper class around for reading HDF5 cross-section data
  * mostly using hfd5 and openmc api */
@@ -22,16 +35,13 @@ public:
   std::vector<float> getEnergyDataPoints(const std::string &isotope_name,
                                          float temperature);
 
-  std::vector<float>
-  getCrossSectionDataPoints(const std::string &isotope_name, float temperature,
-                            CrossSectionDataType data_type,
-                            const std::string &reaction_name);
+  std::vector<float> getCrossSectionDataPoints(const std::string &isotope_name,
+                                               float temperature,
+                                               CrossSectionDataType data_type);
 
-private:
   // Do I need to set the return type to host vector as well?
   // I need to ask Micah what he thinks.
   std::vector<float> readDataPointFromFile(const std::string &isotope_name,
-                                           const std::string &reaction_name,
                                            float temperature,
                                            CrossSectionDataType data_type);
   std::string buildFilePath(const std::string &isotope_name) const;
@@ -40,6 +50,7 @@ private:
                                int mt_number) const;
   void validateInputs(const std::string &isotope_name, float temperature) const;
 
+private:
   const std::string cross_section_dir_;
   static constexpr std::string_view PARTICLE_TYPE = "neutron";
 };
@@ -49,12 +60,21 @@ struct CrossSectionGridPoint {
   CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
                         float sigma_t, float sigma_c)
       : _energy(energy), _sigma_s(sigma_s), _sigma_f(sigma_f),
-        _sigma_t(sigma_t), _sigma_c(sigma_c) {}
+      _sigma_c(sigma_c),_sigma_t(sigma_t){}
+
+  // adding another constructor that automatically sets the total cross-section
+  CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
+                        float sigma_c)
+      : _energy(energy), _sigma_s(sigma_s), _sigma_f(sigma_f),
+        _sigma_c(sigma_c) {
+    _sigma_t = _sigma_c + _sigma_f + _sigma_s;
+  }
+
   float _energy;
   float _sigma_s;
   float _sigma_f;
-  float _sigma_t;
   float _sigma_c;
+  float _sigma_t;
 };
 
 /*array of struct.
