@@ -11,15 +11,15 @@
 
 namespace neuxs {
 
-enum class CrossSectionDataType { Energy, Elastic, Capture, Fission, Total };
+  enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
 
 __host__ inline int getMTNumber(CrossSectionDataType type) {
   switch (type) {
-  case CrossSectionDataType::Elastic:
+  case CrossSectionDataType::SCATTERING:
     return 2;
-  case CrossSectionDataType::Capture:
+  case CrossSectionDataType::CAPTURE:
     return 102;
-  case CrossSectionDataType::Fission:
+  case CrossSectionDataType::FISSION:
     return 18;
   default:
     return -1;

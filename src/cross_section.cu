@@ -17,7 +17,7 @@ OpenMCCrossSectionReader::getEnergyDataPoints(const std::string &isotope_name,
 
   validateInputs(isotope_name, temperature);
 
-  auto data = readDataPointFromFile(isotope_name, temperature, CrossSectionDataType::Energy);
+  auto data = readDataPointFromFile(isotope_name, temperature, CrossSectionDataType::ENERGY);
 
   std::vector<float> result(data.size());
   std::transform(data.begin(), data.end(), result.begin(), [](double d) { return static_cast<float>(d); });
@@ -29,7 +29,7 @@ std::vector<float> OpenMCCrossSectionReader::getCrossSectionDataPoints(
     const std::string &isotope_name, float temperature,
     CrossSectionDataType data_type) {
 
-  if (data_type == CrossSectionDataType::Energy)
+  if (data_type == CrossSectionDataType::ENERGY)
     throw std::invalid_argument("Use getEnergyDataPoints for Energy data type");
 
   validateInputs(isotope_name, temperature);
@@ -54,7 +54,7 @@ std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
   }
 
   int mt_number = 0;
-  if (data_type != CrossSectionDataType::Energy) {
+  if (data_type != CrossSectionDataType::ENERGY) {
     mt_number = getMTNumber(data_type);
   }
 
@@ -102,7 +102,7 @@ std::string OpenMCCrossSectionReader::buildDatasetPath(
 
   std::string temp_str = std::to_string(static_cast<int>(temperature)) + "K";
 
-  if (data_type == CrossSectionDataType::Energy)
+  if (data_type == CrossSectionDataType::ENERGY)
     return "/energy/" + temp_str;
 
   // I miss python now :)
