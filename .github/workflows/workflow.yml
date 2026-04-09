@@ -33,4 +33,4 @@ jobs:
         shell: bash
         run: |
           cd  build/tests/
-          ./test_load_openmc
+          ./load_neuxs
