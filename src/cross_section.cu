@@ -1,5 +1,4 @@
 #include "cross_section.cuh"
-#include "openmc/reaction.h"
 #include <algorithm>
 
 namespace neuxs {
@@ -18,40 +17,35 @@ OpenMCCrossSectionReader::getEnergyDataPoints(const std::string &isotope_name,
 
   validateInputs(isotope_name, temperature);
 
-  auto data = readDataPointFromFile(isotope_name, "", temperature,
-                                    CrossSectionDataType::ENERGY);
+  auto data = readDataPointFromFile(isotope_name, temperature, CrossSectionDataType::Energy);
 
   std::vector<float> result(data.size());
-  std::transform(data.begin(), data.end(), result.begin(),
-                 [](double d) { return static_cast<float>(d); });
+  std::transform(data.begin(), data.end(), result.begin(), [](double d) { return static_cast<float>(d); });
 
   return result;
 }
 
 std::vector<float> OpenMCCrossSectionReader::getCrossSectionDataPoints(
     const std::string &isotope_name, float temperature,
-    CrossSectionDataType data_type, const std::string &reaction_name) {
+    CrossSectionDataType data_type) {
 
-  if (data_type == CrossSectionDataType::ENERGY)
-    throw std::invalid_argument("Use getEnergyDataPoints for ENERGY data type");
+  if (data_type == CrossSectionDataType::Energy)
+    throw std::invalid_argument("Use getEnergyDataPoints for Energy data type");
 
-  if (reaction_name.empty())
-    throw std::invalid_argument("Reaction name cannot be empty");
+
 
   validateInputs(isotope_name, temperature);
 
-  auto data = readDataPointFromFile(isotope_name, reaction_name, temperature,
-                                    data_type);
+  auto data = readDataPointFromFile(isotope_name, temperature,data_type);
 
   std::vector<float> result(data.size());
-  std::transform(data.begin(), data.end(), result.begin(),
-                 [](float d) { return static_cast<float>(d); });
+  std::transform(data.begin(), data.end(), result.begin(), [](float d) { return static_cast<float>(d); });
 
   return result;
 }
 
 std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
-    const std::string &isotope_name, const std::string &reaction_name,
+    const std::string &isotope_name,
     float temperature, CrossSectionDataType data_type) {
 
   std::string file_path = buildFilePath(isotope_name);
@@ -62,12 +56,11 @@ std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
   }
 
   int mt_number = 0;
-  if (data_type != CrossSectionDataType::ENERGY) {
-    mt_number = openmc::reaction_mt(reaction_name);
+  if (data_type != CrossSectionDataType::Energy) {
+    mt_number = getMTNumber(data_type);
   }
 
-  std::string dataset_path =
-      isotope_name + buildDatasetPath(temperature, data_type, mt_number);
+  std::string dataset_path = isotope_name + buildDatasetPath(temperature, data_type, mt_number);
   hid_t dataset_id = H5Dopen(file_id, dataset_path.c_str(), H5P_DEFAULT);
 
   if (dataset_id < 0) {
@@ -111,14 +104,14 @@ std::string OpenMCCrossSectionReader::buildDatasetPath(
 
   std::string temp_str = std::to_string(static_cast<int>(temperature)) + "K";
 
-  if (data_type == CrossSectionDataType::ENERGY)
+  if (data_type == CrossSectionDataType::Energy)
     return "/energy/" + temp_str;
 
   // I miss python now :)
   std::string mt_number_converted_to_string;
   if (mt_number < 10)
     mt_number_converted_to_string = "00" + std::to_string(mt_number);
-  else if (10 < mt_number and mt_number < 100)
+  else if (10 <= mt_number and mt_number < 100)
     mt_number_converted_to_string = "0" + std::to_string(mt_number);
   else
     mt_number_converted_to_string = std::to_string(mt_number);

@@ -4,7 +4,8 @@ project(neuxs LANGUAGES CXX CUDA)
 
 set(CMAKE_CUDA_RUNTIME_LIBRARY Shared)
 
-add_subdirectory(openmc)
+find_package(HDF5 REQUIRED)
+
 add_subdirectory(src)
 add_subdirectory(tests)
 add_subdirectory(examples)
