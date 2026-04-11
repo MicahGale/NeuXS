@@ -17,10 +17,12 @@ OpenMCCrossSectionReader::getEnergyDataPoints(const std::string &isotope_name,
 
   validateInputs(isotope_name, temperature);
 
-  auto data = readDataPointFromFile(isotope_name, temperature, CrossSectionDataType::ENERGY);
+  auto data = readDataPointFromFile(isotope_name, temperature,
+                                    CrossSectionDataType::ENERGY);
 
   std::vector<float> result(data.size());
-  std::transform(data.begin(), data.end(), result.begin(), [](double d) { return static_cast<float>(d); });
+  std::transform(data.begin(), data.end(), result.begin(),
+                 [](double d) { return static_cast<float>(d); });
 
   return result;
 }
@@ -34,17 +36,18 @@ std::vector<float> OpenMCCrossSectionReader::getCrossSectionDataPoints(
 
   validateInputs(isotope_name, temperature);
 
-  auto data = readDataPointFromFile(isotope_name, temperature,data_type);
+  auto data = readDataPointFromFile(isotope_name, temperature, data_type);
 
   std::vector<float> result(data.size());
-  std::transform(data.begin(), data.end(), result.begin(), [](float d) { return static_cast<float>(d); });
+  std::transform(data.begin(), data.end(), result.begin(),
+                 [](float d) { return static_cast<float>(d); });
 
   return result;
 }
 
 std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
-    const std::string &isotope_name,
-    float temperature, CrossSectionDataType data_type) {
+    const std::string &isotope_name, float temperature,
+    CrossSectionDataType data_type) {
 
   std::string file_path = buildFilePath(isotope_name);
   hid_t file_id = H5Fopen(file_path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -58,7 +61,8 @@ std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
     mt_number = getMTNumber(data_type);
   }
 
-  std::string dataset_path = isotope_name + buildDatasetPath(temperature, data_type, mt_number);
+  std::string dataset_path =
+      isotope_name + buildDatasetPath(temperature, data_type, mt_number);
   hid_t dataset_id = H5Dopen(file_id, dataset_path.c_str(), H5P_DEFAULT);
 
   if (dataset_id < 0) {
