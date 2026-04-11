@@ -82,6 +82,17 @@ struct CrossSectionGridPoint {
   float _sigma_t;
 };
 
+class ArrayStructCrossSection : public CrossSection<ArrayStructCrossSection> {
+public:
+  __device__ void get_sigma(float *energy, float *sigma_s, float *sigma_c,
+                            float *sigma_f, float *sigma_t,
+                            unsigned int n_particles);
+
+private:
+  thrust::host_vector<CrossSectionGridPoint> _data;
+  thrust::device_vector<CrossSectionGridPoint> _d_data;
+};
+
 /*array of struct.
  * A future todo note for us: We will come back and
  * implement struct of array data structure as well
