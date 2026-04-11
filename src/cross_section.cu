@@ -131,13 +131,12 @@ void OpenMCCrossSectionReader::validateInputs(const std::string &isotope_name,
 }
 
 NuclideCrossSectionSet::NuclideCrossSectionSet(
-    const unsigned int material_id, const std::vector<float> &energy,
-    const std::vector<float> &sigma_s, const std::vector<float> &sigma_f,
-    const std::vector<float> &sigma_t, const std::vector<float> &sigma_c) {
+    const std::vector<float> &energy, const std::vector<float> &sigma_s,
+    const std::vector<float> &sigma_f, const std::vector<float> &sigma_t,
+    const std::vector<float> &sigma_c) {
 
   preCheck(energy, sigma_s, sigma_f, sigma_t, sigma_c);
 
-  _material_id = material_id;
   const auto size = energy.size();
   _cross_section_grids.reserve(size);
 

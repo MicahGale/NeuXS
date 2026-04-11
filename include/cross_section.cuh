@@ -88,8 +88,7 @@ struct CrossSectionGridPoint {
  */
 struct NuclideCrossSectionSet {
 
-  NuclideCrossSectionSet(const unsigned int material_id,
-                         const std::vector<float> &energy,
+  NuclideCrossSectionSet(const std::vector<float> &energy,
                          const std::vector<float> &sigma_s,
                          const std::vector<float> &sigma_f,
                          const std::vector<float> &sigma_t,
@@ -103,7 +102,6 @@ struct NuclideCrossSectionSet {
                 const std::vector<float> &sigma_t,
                 const std::vector<float> &sigma_c);
 
-  unsigned int _material_id;
   thrust::host_vector<CrossSectionGridPoint> _cross_section_grids;
   thrust::device_vector<CrossSectionGridPoint> _cross_section_grids_d;
 };
@@ -119,7 +117,6 @@ private:
 };
 
 __device__ void energy_binary_search(float *particle_energy,
-                                     unsigned int material_id,
                                      CrossSectionDataType reaction_type,
                                      float *cross_section);
 
