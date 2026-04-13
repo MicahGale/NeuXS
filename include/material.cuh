@@ -1,7 +1,6 @@
 #ifndef NEUXS_MATERIAL_H
 #define NEUXS_MATERIAL_H
 
-#endif // NEUXS_MATERIAL_H
 
 #pragma once
 #include "cross_section.cuh"
@@ -29,4 +28,4 @@ private:
 
 } // namespace neuxs
 
-#endif 
+#endif // NEUXS_MATERIAL_H

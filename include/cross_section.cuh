@@ -10,6 +10,8 @@
 
 namespace neuxs {
 
+typedef thrust::device_vector<float> f_vec;
+
 enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
 
 __host__ inline int getMTNumber(CrossSectionDataType type) {
@@ -26,9 +28,9 @@ __host__ inline int getMTNumber(CrossSectionDataType type) {
 }
 template <typename T> class CrossSection {
 public:
-  __device__ void get_cross_section(float *energy, float *sigma_s,
-                                    float *sigma_c, float *sigma_f,
-                                    float *sigma_t, unsigned int n_particles);
+  __device__ void get_cross_section(f_vec *energy, f_vec *sigma_s,
+                                    f_vec *sigma_c, f_vec *sigma_f,
+                                    f_vec *sigma_t);
 };
 
 /*A wrapper class around for reading HDF5 cross-section data
@@ -84,9 +86,8 @@ struct CrossSectionGridPoint {
 
 class ArrayStructCrossSection : public CrossSection<ArrayStructCrossSection> {
 public:
-  __device__ void get_sigma(float *energy, float *sigma_s, float *sigma_c,
-                            float *sigma_f, float *sigma_t,
-                            unsigned int n_particles);
+  __device__ void get_sigma(f_vec *energy, f_vec *sigma_s, f_vec *sigma_c,
+                            f_vec *sigma_f, f_vec *sigma_t);
 
 private:
   thrust::host_vector<CrossSectionGridPoint> _data;
@@ -119,9 +120,8 @@ struct NuclideCrossSectionSet {
 
 class StructArrayCrossSection : CrossSection<StructArrayCrossSection> {
 public:
-  __device__ void get_sigma(float *energy, float *sigma_s, float *sigma_c,
-                            float *sigma_f, float *sigma_t,
-                            unsigned int n_particles);
+  __device__ void get_sigma(f_vec *energy, f_vec *sigma_s, f_vec *sigma_c,
+                            f_vec *sigma_f, f_vec *sigma_t);
 
 private:
   NuclideCrossSectionSet _data;
