@@ -3,6 +3,15 @@
 
 namespace neuxs {
 
+template <typename T>
+__device__ void
+CrossSection<T>::get_cross_section(neuxs::f_vec *energy, neuxs::f_vec *sigma_s,
+                                   neuxs::f_vec *sigma_c, neuxs::f_vec *sigma_f,
+                                   neuxs::f_vec *sigma_t) {
+  return static_cast<T>(this)->get_sigma(energy, sigma_s, sigma_c, sigma_f,
+                                         sigma_t);
+}
+
 OpenMCCrossSectionReader::OpenMCCrossSectionReader(
     std::string cross_section_dir)
     : cross_section_dir_(std::move(cross_section_dir)) {
@@ -165,4 +174,5 @@ void NuclideCrossSectionSet::preCheck(const std::vector<float> &energy,
     throw std::runtime_error(" Invalid cross section data point. Size of "
                              "reaction data don't match with each other");
 }
-}; // namespace neuxs
+}
+; // namespace neuxs
