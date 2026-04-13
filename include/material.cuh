@@ -1,7 +1,6 @@
 #ifndef NEUXS_MATERIAL_H
 #define NEUXS_MATERIAL_H
 
-
 #pragma once
 #include "cross_section.cuh"
 
@@ -13,14 +12,16 @@ template <typename T> struct NuclideComponent {
 };
 template <typename T> class Material {
 public:
-  __device__ void get_cross_section(float *energy, float *sigma_s,
-                                    float *sigma_c, float *sigma_f,
-                                    float *sigma_t, unsigned int n_particles);
-  __device__ void decide_if_collide(float *energies, float *distance_escape,
-                                    bool *collide, unsigned int n_particles);
-  __device__ void decide_collide_type(float *energies,
-                                      CrossSectionDataType *collision_types,
-                                      unsigned int n_particles);
+  __device__ void get_cross_section(neuxs::f_vec *energy, neuxs::f_vec *sigma_s,
+                                    neuxs::f_vec *sigma_c,
+                                    neuxs::f_vec *sigma_f,
+                                    neuxs::f_vec *sigma_t);
+  __device__ void decide_if_collide(neuxs::f_vec *energies,
+                                    neuxs::f_vec *distance_escape,
+                                    thrust::device_vector<bool> *collide);
+  __device__ void decide_collide_type(
+      neuxs::f_vec *energy,
+      thrust::device_vector<CrossSectionDataType> *collision_types);
 
 private:
   thrust::device_vector<NuclideComponent<T>> _components;
