@@ -31,6 +31,8 @@ public:
   __device__ void get_cross_section(f_vec *energy, f_vec *sigma_s,
                                     f_vec *sigma_c, f_vec *sigma_f,
                                     f_vec *sigma_t);
+  __device__ void interpolate(float x1, float x2, float x_val, float y1,
+                              float y2, float *y_val);
 };
 
 /*A wrapper class around for reading HDF5 cross-section data
