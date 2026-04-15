@@ -93,7 +93,7 @@ public:
 
 private:
   thrust::host_vector<CrossSectionGridPoint> _host_data;
-  thrust::device_vector<CrossSectionGridPoint> _d_data;
+  thrust::device_vector<CrossSectionGridPoint> _device_data;
 };
 
 /*array of struct.
