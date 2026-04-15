@@ -92,7 +92,7 @@ public:
                             f_vec *sigma_f, f_vec *sigma_t);
 
 private:
-  thrust::host_vector<CrossSectionGridPoint> _data;
+  thrust::host_vector<CrossSectionGridPoint> _host_data;
   thrust::device_vector<CrossSectionGridPoint> _d_data;
 };
 
