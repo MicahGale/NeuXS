@@ -3,6 +3,23 @@
 
 namespace neuxs {
 
+template <typename T>
+__device__ void
+CrossSection<T>::get_cross_section(neuxs::f_vec *energy, neuxs::f_vec *sigma_s,
+                                   neuxs::f_vec *sigma_c, neuxs::f_vec *sigma_f,
+                                   neuxs::f_vec *sigma_t) {
+  return static_cast<T>(this)->get_sigma(energy, sigma_s, sigma_c, sigma_f,
+                                         sigma_t);
+}
+
+template <typename T>
+__device__ void CrossSection<T>::interpolate(float x1, float x2, float x_val,
+                                             float y1, float y2, float *y_val) {
+  float x_delta = x2 - x1;
+  float y_delta = y2 - y1;
+  *y_val = y1 + y_delta * (x_val - x1) / x_delta;
+}
+
 OpenMCCrossSectionReader::OpenMCCrossSectionReader(
     std::string cross_section_dir)
     : cross_section_dir_(std::move(cross_section_dir)) {
@@ -17,10 +34,12 @@ OpenMCCrossSectionReader::getEnergyDataPoints(const std::string &isotope_name,
 
   validateInputs(isotope_name, temperature);
 
-  auto data = readDataPointFromFile(isotope_name, temperature, CrossSectionDataType::ENERGY);
+  auto data = readDataPointFromFile(isotope_name, temperature,
+                                    CrossSectionDataType::ENERGY);
 
   std::vector<float> result(data.size());
-  std::transform(data.begin(), data.end(), result.begin(), [](double d) { return static_cast<float>(d); });
+  std::transform(data.begin(), data.end(), result.begin(),
+                 [](double d) { return static_cast<float>(d); });
 
   return result;
 }
@@ -34,17 +53,18 @@ std::vector<float> OpenMCCrossSectionReader::getCrossSectionDataPoints(
 
   validateInputs(isotope_name, temperature);
 
-  auto data = readDataPointFromFile(isotope_name, temperature,data_type);
+  auto data = readDataPointFromFile(isotope_name, temperature, data_type);
 
   std::vector<float> result(data.size());
-  std::transform(data.begin(), data.end(), result.begin(), [](float d) { return static_cast<float>(d); });
+  std::transform(data.begin(), data.end(), result.begin(),
+                 [](float d) { return static_cast<float>(d); });
 
   return result;
 }
 
 std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
-    const std::string &isotope_name,
-    float temperature, CrossSectionDataType data_type) {
+    const std::string &isotope_name, float temperature,
+    CrossSectionDataType data_type) {
 
   std::string file_path = buildFilePath(isotope_name);
   hid_t file_id = H5Fopen(file_path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -58,7 +78,8 @@ std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
     mt_number = getMTNumber(data_type);
   }
 
-  std::string dataset_path = isotope_name + buildDatasetPath(temperature, data_type, mt_number);
+  std::string dataset_path =
+      isotope_name + buildDatasetPath(temperature, data_type, mt_number);
   hid_t dataset_id = H5Dopen(file_id, dataset_path.c_str(), H5P_DEFAULT);
 
   if (dataset_id < 0) {
@@ -131,13 +152,12 @@ void OpenMCCrossSectionReader::validateInputs(const std::string &isotope_name,
 }
 
 NuclideCrossSectionSet::NuclideCrossSectionSet(
-    const unsigned int material_id, const std::vector<float> &energy,
-    const std::vector<float> &sigma_s, const std::vector<float> &sigma_f,
-    const std::vector<float> &sigma_t, const std::vector<float> &sigma_c) {
+    const std::vector<float> &energy, const std::vector<float> &sigma_s,
+    const std::vector<float> &sigma_f, const std::vector<float> &sigma_t,
+    const std::vector<float> &sigma_c) {
 
   preCheck(energy, sigma_s, sigma_f, sigma_t, sigma_c);
 
-  _material_id = material_id;
   const auto size = energy.size();
   _cross_section_grids.reserve(size);
 

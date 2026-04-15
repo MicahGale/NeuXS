@@ -7,11 +7,12 @@
 #include <thrust/host_vector.h>
 
 #include "hdf5.h"
-#include "material.cuh"
 
 namespace neuxs {
 
-  enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
+typedef thrust::device_vector<float> f_vec;
+
+enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
 
 __host__ inline int getMTNumber(CrossSectionDataType type) {
   switch (type) {
@@ -25,6 +26,14 @@ __host__ inline int getMTNumber(CrossSectionDataType type) {
     return -1;
   }
 }
+template <typename T> class CrossSection {
+public:
+  __device__ void get_cross_section(f_vec *energy, f_vec *sigma_s,
+                                    f_vec *sigma_c, f_vec *sigma_f,
+                                    f_vec *sigma_t);
+  __device__ void interpolate(float x1, float x2, float x_val, float y1,
+                              float y2, float *y_val);
+};
 
 /*A wrapper class around for reading HDF5 cross-section data
  * mostly using hfd5 and openmc api */
@@ -60,7 +69,7 @@ struct CrossSectionGridPoint {
   CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
                         float sigma_t, float sigma_c)
       : _energy(energy), _sigma_s(sigma_s), _sigma_f(sigma_f),
-      _sigma_c(sigma_c),_sigma_t(sigma_t){}
+        _sigma_c(sigma_c), _sigma_t(sigma_t) {}
 
   // adding another constructor that automatically sets the total cross-section
   CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
@@ -77,14 +86,23 @@ struct CrossSectionGridPoint {
   float _sigma_t;
 };
 
+class ArrayStructCrossSection : public CrossSection<ArrayStructCrossSection> {
+public:
+  __device__ void get_sigma(f_vec *energy, f_vec *sigma_s, f_vec *sigma_c,
+                            f_vec *sigma_f, f_vec *sigma_t);
+
+private:
+  thrust::host_vector<CrossSectionGridPoint> _host_data;
+  thrust::device_vector<CrossSectionGridPoint> _device_data;
+};
+
 /*array of struct.
  * A future todo note for us: We will come back and
  * implement struct of array data structure as well
  */
 struct NuclideCrossSectionSet {
 
-  NuclideCrossSectionSet(const unsigned int material_id,
-                         const std::vector<float> &energy,
+  NuclideCrossSectionSet(const std::vector<float> &energy,
                          const std::vector<float> &sigma_s,
                          const std::vector<float> &sigma_f,
                          const std::vector<float> &sigma_t,
@@ -98,12 +116,20 @@ struct NuclideCrossSectionSet {
                 const std::vector<float> &sigma_t,
                 const std::vector<float> &sigma_c);
 
-  unsigned int _material_id;
   thrust::host_vector<CrossSectionGridPoint> _cross_section_grids;
+  thrust::device_vector<CrossSectionGridPoint> _device_cross_section_grids;
+};
+
+class StructArrayCrossSection : CrossSection<StructArrayCrossSection> {
+public:
+  __device__ void get_sigma(f_vec *energy, f_vec *sigma_s, f_vec *sigma_c,
+                            f_vec *sigma_f, f_vec *sigma_t);
+
+private:
+  NuclideCrossSectionSet _data;
 };
 
 __device__ void energy_binary_search(float *particle_energy,
-                                     unsigned int material_id,
                                      CrossSectionDataType reaction_type,
                                      float *cross_section);
 
