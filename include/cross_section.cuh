@@ -117,7 +117,7 @@ struct NuclideCrossSectionSet {
                 const std::vector<float> &sigma_c);
 
   thrust::host_vector<CrossSectionGridPoint> _cross_section_grids;
-  thrust::device_vector<CrossSectionGridPoint> _cross_section_grids_d;
+  thrust::device_vector<CrossSectionGridPoint> _device_cross_section_grids;
 };
 
 class StructArrayCrossSection : CrossSection<StructArrayCrossSection> {
