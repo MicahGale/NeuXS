@@ -6,6 +6,9 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
+#include <cuco/static_map.cuh>
+
+
 #include "hdf5.h"
 
 namespace neuxs {

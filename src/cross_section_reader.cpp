@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <vector>
+#include <algorithm>
 
 #include "cross_section_reader.h"
 
