@@ -1,5 +1,6 @@
 #include "cross_section.cuh"
 #include <algorithm>
+#include <filesystem>
 
 namespace neuxs {
 
@@ -20,10 +21,17 @@ __device__ void CrossSection<T>::interpolate(float x1, float x2, float x_val,
   *y_val = y1 + y_delta * (x_val - x1) / x_delta;
 }
 
+OpenMCCrossSectionReader::OpenMCCrossSectionReader()
+    : _cross_section_dir(processSystemCrossSectionEnv()) {
+  if (_cross_section_dir.empty()) {
+    throw std::invalid_argument("Cross-section path cannot be empty");
+  }
+}
+
 OpenMCCrossSectionReader::OpenMCCrossSectionReader(
     std::string cross_section_dir)
-    : cross_section_dir_(std::move(cross_section_dir)) {
-  if (cross_section_dir_.empty()) {
+    : _cross_section_dir(std::move(cross_section_dir)) {
+  if (_cross_section_dir.empty()) {
     throw std::invalid_argument("Cross-section path cannot be empty");
   }
 }
@@ -115,7 +123,7 @@ std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
 
 std::string
 OpenMCCrossSectionReader::buildFilePath(const std::string &isotope_name) const {
-  return cross_section_dir_ + "/" + isotope_name + ".h5";
+  return _cross_section_dir + "/" + isotope_name + ".h5";
 }
 
 std::string OpenMCCrossSectionReader::buildDatasetPath(
@@ -149,6 +157,15 @@ void OpenMCCrossSectionReader::validateInputs(const std::string &isotope_name,
   if (temperature < 0.0f) {
     throw std::invalid_argument("Temperature must be positive");
   }
+}
+
+std::string OpenMCCrossSectionReader::processSystemCrossSectionEnv() {
+  char *xml_path = std::getenv("OPENMC_CROSS_SECTIONS");
+  if (xml_path) {
+    std::string dir_path = std::filesystem::path(xml_path).parent_path().string();
+    return  (std::filesystem::path(dir_path) / "neutron").string();
+  }
+  return std::string{};
 }
 
 NuclideCrossSectionSet::NuclideCrossSectionSet(

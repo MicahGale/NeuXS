@@ -26,6 +26,7 @@ __host__ inline int getMTNumber(CrossSectionDataType type) {
     return -1;
   }
 }
+
 template <typename T> class CrossSection {
 public:
   __device__ void get_cross_section(f_vec *energy, f_vec *sigma_s,
@@ -39,6 +40,11 @@ public:
  * mostly using hfd5 and openmc api */
 class OpenMCCrossSectionReader {
 public:
+  /*This constructor reader will look for the
+   * OPENMC_CROSS_SECTIONS ENV variable in the system
+   */
+  OpenMCCrossSectionReader();
+
   explicit OpenMCCrossSectionReader(std::string cross_section_dir);
 
   std::vector<float> getEnergyDataPoints(const std::string &isotope_name,
@@ -60,8 +66,9 @@ public:
   void validateInputs(const std::string &isotope_name, float temperature) const;
 
 private:
-  const std::string cross_section_dir_;
-  static constexpr std::string_view PARTICLE_TYPE = "neutron";
+
+  std::string processSystemCrossSectionEnv();
+  const std::string _cross_section_dir;
 };
 
 struct CrossSectionGridPoint {
