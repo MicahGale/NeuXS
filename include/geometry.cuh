@@ -5,30 +5,31 @@
 
 namespace neuxs {
 
-    struct Material;
+struct Material;
 
-    struct Cell {
-        float _volume;
-        unsigned int _id;
-        Material* _material;
-        Cell* _neighbor_cells;
-        unsigned int _num_neighbors;
+struct Cell {
+  float _volume;
+  unsigned int _id;
+  Material *_material;
+  Cell *_neighbor_cells;
+  unsigned int _num_neighbors;
 
-        Cell(float volume, unsigned int id);
+  Cell(float volume, unsigned int id);
 
-        void __host__ setMaterial(Material* material);
+  void __host__ setMaterial(Material *material);
 
-        void __host__ setNeighboringCells(Cell* cells, unsigned int number_of_neighbors);
+  void __host__ setNeighboringCells(Cell *cells,
+                                    unsigned int number_of_neighbors);
 
-        void __host__ checkNeighboringCellIDs();
+  void __host__ checkNeighboringCellIDs();
 
-        bool __device__ particleEscapesTheCell(float particle_energy);
+  bool __device__ particleEscapesTheCell(float particle_energy);
 
-        Cell* __device__  getRandomNeighborCell(float particle_energy);
+  Cell *__device__ getRandomNeighborCell(float particle_energy);
 
-        const Material* getMaterial() const;
-    };
+  const Material *getMaterial() const;
+};
 
-}
+} // namespace neuxs
 
 #endif

@@ -10,59 +10,10 @@
 
 namespace neuxs {
 
-typedef thrust::device_vector<float> f_vec;
+template <typename T> using DeviceVector = thrust::device_vector<T>;
+template <typename T> using HostVector = thrust::host_vector<T>;
 
 enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
-
-__host__ inline int getMTNumber(CrossSectionDataType type) {
-  switch (type) {
-  case CrossSectionDataType::SCATTERING:
-    return 2;
-  case CrossSectionDataType::CAPTURE:
-    return 102;
-  case CrossSectionDataType::FISSION:
-    return 18;
-  default:
-    return -1;
-  }
-}
-template <typename T> class CrossSection {
-public:
-  __device__ void get_cross_section(f_vec *energy, f_vec *sigma_s,
-                                    f_vec *sigma_c, f_vec *sigma_f,
-                                    f_vec *sigma_t);
-  __device__ void interpolate(float x1, float x2, float x_val, float y1,
-                              float y2, float *y_val);
-};
-
-/*A wrapper class around for reading HDF5 cross-section data
- * mostly using hfd5 and openmc api */
-class OpenMCCrossSectionReader {
-public:
-  explicit OpenMCCrossSectionReader(std::string cross_section_dir);
-
-  std::vector<float> getEnergyDataPoints(const std::string &isotope_name,
-                                         float temperature);
-
-  std::vector<float> getCrossSectionDataPoints(const std::string &isotope_name,
-                                               float temperature,
-                                               CrossSectionDataType data_type);
-
-  // Do I need to set the return type to host vector as well?
-  // I need to ask Micah what he thinks.
-  std::vector<float> readDataPointFromFile(const std::string &isotope_name,
-                                           float temperature,
-                                           CrossSectionDataType data_type);
-  std::string buildFilePath(const std::string &isotope_name) const;
-  std::string buildDatasetPath(float temperature,
-                               CrossSectionDataType data_type,
-                               int mt_number) const;
-  void validateInputs(const std::string &isotope_name, float temperature) const;
-
-private:
-  const std::string cross_section_dir_;
-  static constexpr std::string_view PARTICLE_TYPE = "neutron";
-};
 
 struct CrossSectionGridPoint {
 
@@ -86,20 +37,30 @@ struct CrossSectionGridPoint {
   float _sigma_t;
 };
 
-class ArrayStructCrossSection : public CrossSection<ArrayStructCrossSection> {
+template <typename T> class CrossSection {
 public:
-  __device__ void get_sigma(f_vec *energy, f_vec *sigma_s, f_vec *sigma_c,
-                            f_vec *sigma_f, f_vec *sigma_t);
-
-private:
-  thrust::host_vector<CrossSectionGridPoint> _host_data;
-  thrust::device_vector<CrossSectionGridPoint> _device_data;
+  __device__ void getCrossSection(DeviceVector<float> *energy,
+                                  DeviceVector<float> *sigma_s,
+                                  DeviceVector<float> *sigma_c,
+                                  DeviceVector<float> *sigma_f,
+                                  DeviceVector<float> *sigma_t);
+  __device__ void interpolate(float x1, float x2, float x_val, float y1,
+                              float y2, float *y_val);
 };
 
-/*array of struct.
- * A future todo note for us: We will come back and
- * implement struct of array data structure as well
- */
+class ArrayStructCrossSection : public CrossSection<ArrayStructCrossSection> {
+public:
+  __device__ void get_sigma(DeviceVector<float> *energy,
+                            DeviceVector<float> *sigma_s,
+                            DeviceVector<float> *sigma_c,
+                            DeviceVector<float> *sigma_f,
+                            DeviceVector<float> *sigma_t);
+
+private:
+  HostVector<CrossSectionGridPoint> _host_data;
+  DeviceVector<CrossSectionGridPoint> _device_data;
+};
+
 struct NuclideCrossSectionSet {
 
   NuclideCrossSectionSet(const std::vector<float> &energy,
@@ -108,22 +69,23 @@ struct NuclideCrossSectionSet {
                          const std::vector<float> &sigma_t,
                          const std::vector<float> &sigma_c);
 
-  // check that length of every array are same.
-
   void preCheck(const std::vector<float> &energy,
                 const std::vector<float> &sigma_s,
                 const std::vector<float> &sigma_f,
                 const std::vector<float> &sigma_t,
                 const std::vector<float> &sigma_c);
 
-  thrust::host_vector<CrossSectionGridPoint> _cross_section_grids;
-  thrust::device_vector<CrossSectionGridPoint> _device_cross_section_grids;
+  HostVector<CrossSectionGridPoint> _cross_section_grids;
+  DeviceVector<CrossSectionGridPoint> _device_cross_section_grids;
 };
 
 class StructArrayCrossSection : CrossSection<StructArrayCrossSection> {
 public:
-  __device__ void get_sigma(f_vec *energy, f_vec *sigma_s, f_vec *sigma_c,
-                            f_vec *sigma_f, f_vec *sigma_t);
+  __device__ void get_sigma(DeviceVector<float> *energy,
+                            DeviceVector<float> *sigma_s,
+                            DeviceVector<float> *sigma_c,
+                            DeviceVector<float> *sigma_f,
+                            DeviceVector<float> *sigma_t);
 
 private:
   NuclideCrossSectionSet _data;

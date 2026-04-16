@@ -5,6 +5,29 @@ on:
   pull_request:
 
 jobs:
+  format:
+    name: Clang Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check formatting
+        run: |
+          
+          FILES=$(find . -regex '.*\.\(cu\|cuh\|cpp\|cxx\|h\)')
+
+          echo "$FILES" | while read -r file; do
+            [ -z "$file" ] && continue
+            clang-format --dry-run --Werror "$file"
+          done
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -20,17 +43,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-
       - name: Build
         shell: bash
         run: |
           mkdir build
           cd build
-          cmake .. 
+          cmake ..
           make -j $(nproc)
 
       - name: run_tests
         shell: bash
         run: |
-          cd  build/tests/
+          cd build/tests/
           ./load_neuxs
