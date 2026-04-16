@@ -2,27 +2,43 @@
 #define NEUXS_MATERIAL_H
 
 #include "cross_section.cuh"
+#include <thrust/device_vector.h>
 
 namespace neuxs {
 
+template <typename T> using DeviceVector = thrust::device_vector<T>;
+template <typename T> using HostVector = thrust::host_vector<T>;
+
+class OpenMCCrossSectionReader;
 template <typename T> struct NuclideComponent {
-  CrossSection<T> nuclide;
-  float atom_dens;
+  CrossSection<T> _nuclide_cross_section;
+  float _atom_dens;
 };
+
 template <typename T> class Material {
 public:
-  __device__ void get_cross_section(neuxs::f_vec *energy, neuxs::f_vec *sigma_s,
-                                    neuxs::f_vec *sigma_c,
-                                    neuxs::f_vec *sigma_f,
-                                    neuxs::f_vec *sigma_t);
-  __device__ void decide_if_collide(neuxs::f_vec *energies,
-                                    neuxs::f_vec *distance_escape,
-                                    thrust::device_vector<bool> *collide);
-  __device__ void decide_collide_type(
-      neuxs::f_vec *energy,
+  Material(OpenMCCrossSectionReader &cross_section_reader);
+
+  __host__ void addIsotope() = 0;
+
+  __host__
+
+      __device__ void
+      getCrossSection(DeviceVector<float> *energy, DeviceVector<float> *sigma_s,
+                      DeviceVector<float> *sigma_c,
+                      DeviceVector<float> *sigma_f,
+                      DeviceVector<float> *sigma_t);
+
+  __device__ void decideIfCollide(DeviceVector<float> *energies,
+                                  DeviceVector<float> *distance_escape,
+                                  thrust::device_vector<bool> *collide);
+
+  __device__ void decideCollideType(
+      DeviceVector<float> *energy,
       thrust::device_vector<CrossSectionDataType> *collision_types);
 
 private:
+  const OpenMCCrossSectionReader &_cross_section_reader;
   thrust::device_vector<NuclideComponent<T>> _components;
 };
 
