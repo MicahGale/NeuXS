@@ -3,7 +3,7 @@
 #include <iostream>
 
 void test_cross_section_data() {
-  neuxs::OpenMCCrossSectionReader reader;
+  neuxs::OpenMCCrossSectionReader<float> reader;
 
   auto energy = reader.getEnergyDataPoints("U236", 250);
   auto xs = reader.getCrossSectionDataPoints(
@@ -16,7 +16,7 @@ void test_cross_section_data() {
 }
 
 void test_dataset_path() {
-  neuxs::OpenMCCrossSectionReader reader("/dummy");
+  neuxs::OpenMCCrossSectionReader<float> reader("/dummy");
 
   assert(reader.buildDatasetPath(
              250.0f, neuxs::CrossSectionDataType::SCATTERING,
@@ -48,7 +48,7 @@ int main() {
   // commenting this one out as we need actual cross-section data to
   // test this
 
-  // test_cross_section_data();
+  test_cross_section_data();
   test_dataset_path();
 
   std::cout << "All tests passed\n";

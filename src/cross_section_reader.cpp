@@ -6,14 +6,16 @@
 
 namespace neuxs {
 
-OpenMCCrossSectionReader::OpenMCCrossSectionReader()
+template <typename T>
+OpenMCCrossSectionReader<T>::OpenMCCrossSectionReader()
     : _cross_section_dir(processSystemCrossSectionEnv()) {
   if (_cross_section_dir.empty()) {
     throw std::invalid_argument("Cross-section path cannot be empty");
   }
 }
 
-OpenMCCrossSectionReader::OpenMCCrossSectionReader(
+template <typename T>
+OpenMCCrossSectionReader<T>::OpenMCCrossSectionReader(
     std::string cross_section_dir)
     : _cross_section_dir(std::move(cross_section_dir)) {
   if (_cross_section_dir.empty()) {
@@ -21,42 +23,37 @@ OpenMCCrossSectionReader::OpenMCCrossSectionReader(
   }
 }
 
-std::vector<float>
-OpenMCCrossSectionReader::getEnergyDataPoints(const std::string &isotope_name,
-                                              float temperature) {
+template <typename T>
+std::vector<T> OpenMCCrossSectionReader<T>::getEnergyDataPoints(
+    const std::string &isotope_name, T temperature) {
 
   validateInputs(isotope_name, temperature);
 
   auto data = readDataPointFromFile(isotope_name, temperature,
                                     CrossSectionDataType::ENERGY);
 
-  std::vector<float> result(data.size());
-  std::transform(data.begin(), data.end(), result.begin(),
-                 [](double d) { return static_cast<float>(d); });
-
-  return result;
+  return data;
 }
 
-std::vector<float> OpenMCCrossSectionReader::getCrossSectionDataPoints(
-    const std::string &isotope_name, float temperature,
+template <typename T>
+std::vector<T> OpenMCCrossSectionReader<T>::getCrossSectionDataPoints(
+    const std::string &isotope_name, T temperature,
     CrossSectionDataType data_type) {
 
-  if (data_type == CrossSectionDataType::ENERGY)
+  if (data_type == CrossSectionDataType::ENERGY) {
     throw std::invalid_argument("Use getEnergyDataPoints for Energy data type");
+  }
 
   validateInputs(isotope_name, temperature);
 
   auto data = readDataPointFromFile(isotope_name, temperature, data_type);
 
-  std::vector<float> result(data.size());
-  std::transform(data.begin(), data.end(), result.begin(),
-                 [](float d) { return static_cast<float>(d); });
-
-  return result;
+  return data;
 }
 
-std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
-    const std::string &isotope_name, float temperature,
+template <typename T>
+std::vector<T> OpenMCCrossSectionReader<T>::readDataPointFromFile(
+    const std::string &isotope_name, T temperature,
     CrossSectionDataType data_type) {
 
   std::string file_path = buildFilePath(isotope_name);
@@ -91,9 +88,9 @@ std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
     total_size *= d;
   }
 
-  std::vector<float> data(total_size);
-  herr_t status = H5Dread(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL,
-                          H5P_DEFAULT, data.data());
+  std::vector<T> data(total_size);
+  herr_t status = H5Dread(dataset_id, HDF5TypeTraits<T>::get_type(), H5S_ALL,
+                          H5S_ALL, H5P_DEFAULT, data.data());
 
   H5Sclose(dataspace_id);
   H5Dclose(dataset_id);
@@ -106,45 +103,50 @@ std::vector<float> OpenMCCrossSectionReader::readDataPointFromFile(
   return data;
 }
 
-std::string
-OpenMCCrossSectionReader::buildFilePath(const std::string &isotope_name) const {
+template <typename T>
+std::string OpenMCCrossSectionReader<T>::buildFilePath(
+    const std::string &isotope_name) const {
   return _cross_section_dir + "/" + isotope_name + ".h5";
 }
 
-std::string OpenMCCrossSectionReader::buildDatasetPath(
-    float temperature, CrossSectionDataType data_type, int mt_number) const {
+template <typename T>
+std::string OpenMCCrossSectionReader<T>::buildDatasetPath(
+    T temperature, CrossSectionDataType data_type, int mt_number) const {
 
   std::string temp_str = std::to_string(static_cast<int>(temperature)) + "K";
 
-  if (data_type == CrossSectionDataType::ENERGY)
+  if (data_type == CrossSectionDataType::ENERGY) {
     return "/energy/" + temp_str;
+  }
 
-  // I miss python now :)
   std::string mt_number_converted_to_string;
-  if (mt_number < 10)
+  if (mt_number < 10) {
     mt_number_converted_to_string = "00" + std::to_string(mt_number);
-  else if (10 <= mt_number and mt_number < 100)
+  } else if (mt_number < 100) {
     mt_number_converted_to_string = "0" + std::to_string(mt_number);
-  else
+  } else {
     mt_number_converted_to_string = std::to_string(mt_number);
+  }
 
   return "/reactions/reaction_" + mt_number_converted_to_string + "/" +
          temp_str + "/xs";
 }
 
-void OpenMCCrossSectionReader::validateInputs(const std::string &isotope_name,
-                                              float temperature) const {
+template <typename T>
+void OpenMCCrossSectionReader<T>::validateInputs(
+    const std::string &isotope_name, T temperature) const {
 
   if (isotope_name.empty()) {
     throw std::invalid_argument("Isotope name cannot be empty");
   }
 
-  if (temperature < 0.0f) {
+  if (temperature < 0.0) {
     throw std::invalid_argument("Temperature must be positive");
   }
 }
 
-std::string OpenMCCrossSectionReader::processSystemCrossSectionEnv() {
+template <typename T>
+std::string OpenMCCrossSectionReader<T>::processSystemCrossSectionEnv() {
   char *xml_path = std::getenv("OPENMC_CROSS_SECTIONS");
   if (xml_path) {
     std::string dir_path =
@@ -153,5 +155,11 @@ std::string OpenMCCrossSectionReader::processSystemCrossSectionEnv() {
   }
   return std::string{};
 }
+
+// Explicit template instantiations for float and double
+// other-wise compiler will complain as it will have abs no idea
+// what type it will be.
+template class OpenMCCrossSectionReader<float>;
+template class OpenMCCrossSectionReader<double>;
 
 } // namespace neuxs

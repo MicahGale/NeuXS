@@ -17,109 +17,82 @@ template <typename T> using HostVector = thrust::host_vector<T>;
 
 enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
 
-struct CrossSectionGridPoint {
+/*
+ * CrossSectionGridPoint is the basic singular templated data structure we will
+ * explore for AoS data structure. Energy grid needs to be separate.
+ */
 
-  CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
-                        float sigma_t, float sigma_c)
-      : _energy(energy), _sigma_s(sigma_s), _sigma_f(sigma_f),
-        _sigma_c(sigma_c), _sigma_t(sigma_t) {}
+template <typename T> struct CrossSectionGridPoint {
 
-  // adding another constructor that automatically sets the total cross-section
-  CrossSectionGridPoint(float energy, float sigma_s, float sigma_f,
-                        float sigma_c)
-      : _energy(energy), _sigma_s(sigma_s), _sigma_f(sigma_f),
-        _sigma_c(sigma_c) {
-    _sigma_t = _sigma_c + _sigma_f + _sigma_s;
+  CrossSectionGridPoint(T energy, T sigma_s, T sigma_f, T sigma_c)
+      : _sigma_s(sigma_s), _sigma_f(sigma_f), _sigma_c(sigma_c),
+        _sigma_t(_sigma_c + _sigma_f + _sigma_s) {}
+
+  T _sigma_s;
+  T _sigma_f;
+  T _sigma_c;
+  T _sigma_t;
+};
+
+/*
+ * CrossSectionGridPoint is the basic singular templated data structure we will
+ * explore for SoA data structure. Cross-section data will be stored in device
+ * vector.
+ */
+
+template <typename T> struct CrossSectionArray {
+
+  CrossSectionArray(DeviceVector<T> energy, DeviceVector<T> sigma_s,
+                    DeviceVector<T> sigma_f, DeviceVector<T> sigma_c)
+      : _sigma_s(sigma_s), _sigma_f(sigma_f), _sigma_c(sigma_c) {
+
+    for (size_t i = 0; i < _sigma_s.size(); i++)
+      _sigma_t[i] = _sigma_s[i] + _sigma_f[i] + _sigma_c[i];
   }
 
-  float _energy;
-  float _sigma_s;
-  float _sigma_f;
-  float _sigma_c;
-  float _sigma_t;
+  DeviceVector<T> _sigma_s;
+  DeviceVector<T> _sigma_f;
+  DeviceVector<T> _sigma_c;
+  DeviceVector<T> _sigma_t;
 };
 
 template <typename T> struct HashMap {};
 
-template <typename T> class CrossSection {
+/*
+ * Base class for cross-section data type. T1 will be cross-section data
+ * structure.T2 will numeric data type. either float of double. All the daughter
+ * class will just declare the T1 based on which cross-section data structure
+ * they are using.
+ */
+
+template <typename T1, typename T2> class CrossSection {
 public:
-  __device__ void getCrossSection(DeviceVector<float> *energy,
-                                  DeviceVector<float> *sigma_s,
-                                  DeviceVector<float> *sigma_c,
-                                  DeviceVector<float> *sigma_f,
-                                  DeviceVector<float> *sigma_t);
+  // It needs to be abstract as we will implement
+  // different kind of interpolation methods
+  __device__ virtual CrossSectionGridPoint<T2> getCrossSection(T2 *energy) = 0;
+  HostVector<T2> _energy;
 };
 
-class ArrayStructCrossSection : public CrossSection<ArrayStructCrossSection> {
+template <typename T>
+class AoSLinear : public CrossSection<CrossSectionGridPoint<T>, T> {
 public:
-  __device__ void get_sigma(DeviceVector<float> *energy,
-                            DeviceVector<float> *sigma_s,
-                            DeviceVector<float> *sigma_c,
-                            DeviceVector<float> *sigma_f,
-                            DeviceVector<float> *sigma_t);
+  // linear-linear interpolation methods here
+  __device__ virtual CrossSectionGridPoint<T> getCrossSection() override;
 
 private:
-  HostVector<CrossSectionGridPoint> _host_data;
-  DeviceVector<CrossSectionGridPoint> _device_data;
+  DeviceVector<CrossSectionGridPoint<T>> _device_data;
 };
 
-struct NuclideCrossSectionSet {
-
-  NuclideCrossSectionSet(const std::vector<float> &energy,
-                         const std::vector<float> &sigma_s,
-                         const std::vector<float> &sigma_f,
-                         const std::vector<float> &sigma_t,
-                         const std::vector<float> &sigma_c);
-
-  void preCheck(const std::vector<float> &energy,
-                const std::vector<float> &sigma_s,
-                const std::vector<float> &sigma_f,
-                const std::vector<float> &sigma_t,
-                const std::vector<float> &sigma_c);
-
-  HostVector<CrossSectionGridPoint> _cross_section_grids;
-  DeviceVector<CrossSectionGridPoint> _device_cross_section_grids;
-};
-
-class StructArrayCrossSection : CrossSection<StructArrayCrossSection> {
+template <typename T> class SoALinear : CrossSection<CrossSectionArray<T>, T> {
 public:
-  __device__ void get_sigma(DeviceVector<float> *energy,
-                            DeviceVector<float> *sigma_s,
-                            DeviceVector<float> *sigma_c,
-                            DeviceVector<float> *sigma_f,
-                            DeviceVector<float> *sigma_t);
+  __device__ virtual CrossSectionGridPoint<T> getCrossSection() override;
 
 private:
-  NuclideCrossSectionSet _data;
 };
 
 __device__ void energy_binary_search(float *particle_energy,
                                      CrossSectionDataType reaction_type,
                                      float *cross_section);
-
-/*This builds a 2D hashmap of the nuclides, and it's associated energy grid
- *
- * Nuclides/NuclideCrossSectionSets
- * N1 --E1---E2--E3--E4--E4
- * N2 --E1---E2--E4
- * N3 --E1--E3--E4
- *
- * This could be an acceleration technique when we sample reaction types.
- * We can do binary search for one nuclide get the energy grid index and use
- * that to look up cross-section for other nuclides.
- */
-
-__device__ CrossSectionGridPoint interpolate_grid_logarithmic(
-    CrossSectionGridPoint *grid_point_a, CrossSectionGridPoint *grid_point_b);
-
-__device__ CrossSectionGridPoint interpolate_grid_linear(
-    CrossSectionGridPoint *grid_point_a, CrossSectionGridPoint *grid_point_b);
-
-__device__ void interpolate(float x1, float x2, float x_val, float y1, float y2,
-                            float *y_val);
-
-__host__ void transfer_cross_section_data_to_device(unsigned int nuclide_index);
-
 } // namespace neuxs
 
 #endif // NEUXS_CROSS_SECTION_CUH

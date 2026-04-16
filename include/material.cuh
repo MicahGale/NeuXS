@@ -2,7 +2,6 @@
 #define NEUXS_MATERIAL_H
 
 #include "cross_section.cuh"
-#include <thrust/device_vector.h>
 
 namespace neuxs {
 
@@ -10,9 +9,11 @@ template <typename T> using DeviceVector = thrust::device_vector<T>;
 template <typename T> using HostVector = thrust::host_vector<T>;
 
 class OpenMCCrossSectionReader;
+
 template <typename T> struct NuclideComponent {
-  CrossSection<T> _nuclide_cross_section;
-  float _atom_dens;
+
+  const unsigned int _nuclide_id;
+  const T _atom_dens;
 };
 
 template <typename T> class Material {
