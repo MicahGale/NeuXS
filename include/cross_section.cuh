@@ -8,7 +8,6 @@
 
 #include <cuco/static_map.cuh>
 
-
 #include "hdf5.h"
 
 namespace neuxs {
@@ -40,6 +39,8 @@ struct CrossSectionGridPoint {
   float _sigma_t;
 };
 
+template <typename T> struct HashMap {};
+
 template <typename T> class CrossSection {
 public:
   __device__ void getCrossSection(DeviceVector<float> *energy,
@@ -47,8 +48,6 @@ public:
                                   DeviceVector<float> *sigma_c,
                                   DeviceVector<float> *sigma_f,
                                   DeviceVector<float> *sigma_t);
-  __device__ void interpolate(float x1, float x2, float x_val, float y1,
-                              float y2, float *y_val);
 };
 
 class ArrayStructCrossSection : public CrossSection<ArrayStructCrossSection> {
@@ -109,12 +108,15 @@ __device__ void energy_binary_search(float *particle_energy,
  * We can do binary search for one nuclide get the energy grid index and use
  * that to look up cross-section for other nuclides.
  */
-__host__ void build_nuclide_energy_grids(
-    /*some argument but I am just a place-holder for now*/);
 
-__device__ CrossSectionGridPoint
-interpolate(CrossSectionGridPoint *grid_point_a,
-            const CrossSectionGridPoint *grid_point_b);
+__device__ CrossSectionGridPoint interpolate_grid_logarithmic(
+    CrossSectionGridPoint *grid_point_a, CrossSectionGridPoint *grid_point_b);
+
+__device__ CrossSectionGridPoint interpolate_grid_linear(
+    CrossSectionGridPoint *grid_point_a, CrossSectionGridPoint *grid_point_b);
+
+__device__ void interpolate(float x1, float x2, float x_val, float y1, float y2,
+                            float *y_val);
 
 __host__ void transfer_cross_section_data_to_device(unsigned int nuclide_index);
 

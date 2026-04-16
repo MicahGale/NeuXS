@@ -14,14 +14,6 @@ __device__ void CrossSection<T>::getCrossSection(DeviceVector<float> *energy,
                                          sigma_t);
 }
 
-template <typename T>
-__device__ void CrossSection<T>::interpolate(float x1, float x2, float x_val,
-                                             float y1, float y2, float *y_val) {
-  float x_delta = x2 - x1;
-  float y_delta = y2 - y1;
-  *y_val = y1 + y_delta * (x_val - x1) / x_delta;
-}
-
 NuclideCrossSectionSet::NuclideCrossSectionSet(
     const std::vector<float> &energy, const std::vector<float> &sigma_s,
     const std::vector<float> &sigma_f, const std::vector<float> &sigma_t,
@@ -53,4 +45,5 @@ void NuclideCrossSectionSet::preCheck(const std::vector<float> &energy,
     throw std::runtime_error(" Invalid cross section data point. Size of "
                              "reaction data don't match with each other");
 }
+
 }; // namespace neuxs

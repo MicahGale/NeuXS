@@ -5,7 +5,6 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-
 #include "hdf5.h"
 
 namespace neuxs {

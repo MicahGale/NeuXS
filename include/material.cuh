@@ -21,13 +21,13 @@ public:
 
   __host__ void addIsotope() = 0;
 
-  __host__
+  __host__ void buildEnergyGrid(std::string isotope_name);
 
-      __device__ void
-      getCrossSection(DeviceVector<float> *energy, DeviceVector<float> *sigma_s,
-                      DeviceVector<float> *sigma_c,
-                      DeviceVector<float> *sigma_f,
-                      DeviceVector<float> *sigma_t);
+  __device__ void getCrossSection(DeviceVector<float> *energy,
+                                  DeviceVector<float> *sigma_s,
+                                  DeviceVector<float> *sigma_c,
+                                  DeviceVector<float> *sigma_f,
+                                  DeviceVector<float> *sigma_t);
 
   __device__ void decideIfCollide(DeviceVector<float> *energies,
                                   DeviceVector<float> *distance_escape,
