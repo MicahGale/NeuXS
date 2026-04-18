@@ -19,7 +19,6 @@ class OpenMCCrossSectionReader;
 
 template <typename T> using DeviceVector = thrust::device_vector<T>;
 template <typename T> using HostVector = thrust::host_vector<T>;
-using Isotope = NuclideComponent;
 
 // ============= Main play ground for different data structure ==========
 // =======================================================================
@@ -85,7 +84,7 @@ public:
    */
 
   __host__ void setCrossSection(const OpenMCCrossSectionReader &reader,
-                                Isotope &nuclide) = 0;
+                                NuclideComponent &nuclide) = 0;
 
   /* It needs to be abstract as we will implement
    * different kind of interpolation methods
@@ -109,7 +108,7 @@ class AoSLinear : public CrossSection<CrossSectionGridPoint<T>, T> {
 
 public:
   __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
-                                        Isotope &nuclide) override;
+                                        NuclideComponent &nuclide) override;
 
   // linear-linear interpolation methods here
   __device__ virtual CrossSectionGridPoint<T>
@@ -123,7 +122,7 @@ template <typename T> class SoALinear : CrossSection<CrossSectionArray<T>, T> {
 
 public:
   __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
-                                        Isotope &nuclide) override;
+                                        NuclideComponent &nuclide) override;
 
   // linear-linear interpolation methods here
   __device__ virtual CrossSectionGridPoint<T>

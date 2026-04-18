@@ -48,7 +48,7 @@ int main() {
   // commenting this one out as we need actual cross-section data to
   // test this
 
-  test_cross_section_data();
+  // test_cross_section_data();
   test_dataset_path();
 
   std::cout << "All tests passed\n";
