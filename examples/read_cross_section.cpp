@@ -11,8 +11,9 @@ int main() {
   neuxs::OpenMCCrossSectionReader reader(cross_section_dir);
 
   auto energy = reader.getEnergyDataPoints<float>("U236", 250);
-  auto elastic_scattering_cross_section = reader.getCrossSectionDataPoints<float>(
-      "U236", 250, neuxs::CrossSectionDataType::SCATTERING);
+  auto elastic_scattering_cross_section =
+      reader.getCrossSectionDataPoints<float>(
+          "U236", 250, neuxs::CrossSectionDataType::SCATTERING);
 
   if (energy.size() == elastic_scattering_cross_section.size()) {
     std::cout << "We are so cool\n";
