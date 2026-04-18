@@ -19,7 +19,7 @@ struct NuclideComponent {
 
   NuclideComponent(char *name, unsigned int id, float atom_density,
                    float temperature, bool allow_fission)
-      : _nuclide_id(id), _atom_dens(atom_density), _temperature(temperature),
+      : _name(name),_nuclide_id(id), _atom_dens(atom_density), _temperature(temperature),
         _allows_fission(allow_fission) {}
 
   char *_name;

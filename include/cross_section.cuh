@@ -110,9 +110,10 @@ public:
   __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
                                         NuclideComponent &nuclide) override;
 
+    __device__ virtual size_t searchEnergyGrid(T *energy) override{};
   // linear-linear interpolation methods here
   __device__ virtual CrossSectionGridPoint<T>
-  getCrossSection(T *energy) override;
+  getCrossSection(T *energy) override{};
 
 private:
   DeviceVector<CrossSectionGridPoint<T>> _device_data;
@@ -124,6 +125,7 @@ public:
   __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
                                         NuclideComponent &nuclide) override;
 
+  __device__ virtual size_t searchEnergyGrid(T *energy) override;
   // linear-linear interpolation methods here
   __device__ virtual CrossSectionGridPoint<T>
   getCrossSection(T *energy) override;

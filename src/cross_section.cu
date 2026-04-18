@@ -50,45 +50,7 @@ void AoSLinear<T>::setCrossSection(const OpenMCCrossSectionReader &reader,
       grid_points_host.begin(), grid_points_host.end());
 }
 
-template <typename T>
-void SoALinear<T>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                   NuclideComponent &nuclide) {
-  auto nuclide_name = std::string(nuclide._name);
 
-  auto energy_host =
-      reader.getEnergyDataPoints<T>(nuclide_name, nuclide._temperature);
-  const auto size = energy_host.size();
-
-  this->_energy = DeviceVector<T>(energy_host.begin(), energy_host.end());
-
-  auto scattering_host = reader.getCrossSectionDataPoints<T>(
-      nuclide_name, nuclide._temperature, CrossSectionDataType::SCATTERING);
-
-  auto capture_host = reader.getCrossSectionDataPoints<T>(
-      nuclide_name, nuclide._temperature, CrossSectionDataType::CAPTURE);
-
-  std::vector<T> fission_host;
-  if (nuclide._allows_fission) {
-    fission_host = reader.getCrossSectionDataPoints<T>(
-        nuclide_name, nuclide._temperature, CrossSectionDataType::FISSION);
-
-    if (fission_host.empty())
-      fission_host.assign(size, static_cast<T>(0));
-
-  } else
-    fission_host.assign(size, static_cast<T>(0));
-
-  // I kinda agree now that when I made the cross-section reader I made some
-  // poor choice
-  DeviceVector<T> scattering_device(scattering_host.begin(),
-                                    scattering_host.end());
-  DeviceVector<T> fission_device(fission_host.begin(), fission_host.end());
-  DeviceVector<T> capture_device(capture_host.begin(), capture_host.end());
-
-  // The constructor will compute sigma_t = sigma_s + sigma_f + sigma_c
-  this->_device_data =
-      CrossSectionArray<T>(scattering_device, fission_device, capture_device);
-}
 
 // need explicit definition otherwise compiler goes wild
 
@@ -100,12 +62,6 @@ template void
 AoSLinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
                                    NuclideComponent &nuclide);
 
-template void
-SoALinear<float>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                  NuclideComponent &nuclide);
 
-template void
-SoALinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                   NuclideComponent &nuclide);
 
 } // namespace neuxs
