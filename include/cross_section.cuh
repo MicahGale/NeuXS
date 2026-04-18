@@ -47,8 +47,8 @@ template <typename T> struct CrossSectionGridPoint {
 
 template <typename T> struct CrossSectionArray {
 
-  CrossSectionArray(DeviceVector<T> energy, DeviceVector<T> sigma_s,
-                    DeviceVector<T> sigma_f, DeviceVector<T> sigma_c)
+  CrossSectionArray(DeviceVector<T> sigma_s, DeviceVector<T> sigma_f,
+                    DeviceVector<T> sigma_c)
       : _sigma_s(sigma_s), _sigma_f(sigma_f), _sigma_c(sigma_c) {
 
     _sigma_t.resize(_sigma_s.size());
@@ -83,8 +83,8 @@ public:
    * class.
    */
 
-  __host__ void setCrossSection(const OpenMCCrossSectionReader &reader,
-                                NuclideComponent &nuclide) = 0;
+  __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
+                                        NuclideComponent &nuclide) = 0;
 
   /* It needs to be abstract as we will implement
    * different kind of interpolation methods
@@ -129,7 +129,7 @@ public:
   getCrossSection(T *energy) override;
 
 private:
-  DeviceVector<CrossSectionArray<T>> _device_data;
+  CrossSectionArray<T> _device_data;
 };
 
 } // namespace neuxs

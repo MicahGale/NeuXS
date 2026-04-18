@@ -53,16 +53,16 @@ public:
 
   template <typename T>
   std::vector<T> getEnergyDataPoints(const std::string &isotope_name,
-                                     T temperature);
+                                     T temperature) const;
 
   template <typename T>
-  std::vector<T> getCrossSectionDataPoints(const std::string &isotope_name,
-                                           T temperature,
-                                           CrossSectionDataType data_type);
+  std::vector<T>
+  getCrossSectionDataPoints(const std::string &isotope_name, T temperature,
+                            CrossSectionDataType data_type) const;
   template <typename T>
   std::vector<T> readDataPointFromFile(const std::string &isotope_name,
                                        T temperature,
-                                       CrossSectionDataType data_type);
+                                       CrossSectionDataType data_type) const;
 
   std::string buildFilePath(const std::string &isotope_name) const;
 

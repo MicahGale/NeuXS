@@ -25,7 +25,7 @@ OpenMCCrossSectionReader::OpenMCCrossSectionReader(
 template <typename T>
 std::vector<T>
 OpenMCCrossSectionReader::getEnergyDataPoints(const std::string &isotope_name,
-                                              T temperature) {
+                                              T temperature) const {
 
   validateInputs(isotope_name, temperature);
 
@@ -42,7 +42,7 @@ OpenMCCrossSectionReader::getEnergyDataPoints(const std::string &isotope_name,
 template <typename T>
 std::vector<T> OpenMCCrossSectionReader::getCrossSectionDataPoints(
     const std::string &isotope_name, T temperature,
-    CrossSectionDataType data_type) {
+    CrossSectionDataType data_type) const {
 
   if (data_type == CrossSectionDataType::ENERGY) {
     throw std::invalid_argument("Use getEnergyDataPoints for ENERGY type");
@@ -56,7 +56,7 @@ std::vector<T> OpenMCCrossSectionReader::getCrossSectionDataPoints(
 template <typename T>
 std::vector<T> OpenMCCrossSectionReader::readDataPointFromFile(
     const std::string &isotope_name, T temperature,
-    CrossSectionDataType data_type) {
+    CrossSectionDataType data_type) const {
 
   std::string file_path = buildFilePath(isotope_name);
 
@@ -170,28 +170,26 @@ std::string OpenMCCrossSectionReader::processSystemCrossSectionEnv() {
 
 template std::vector<float>
 OpenMCCrossSectionReader::getEnergyDataPoints<float>(const std::string &,
-                                                     float);
+                                                     float) const;
 
 template std::vector<double>
 OpenMCCrossSectionReader::getEnergyDataPoints<double>(const std::string &,
-                                                      double);
+                                                      double) const;
 
 template std::vector<float>
 OpenMCCrossSectionReader::getCrossSectionDataPoints<float>(
-    const std::string &, float, CrossSectionDataType);
+    const std::string &, float, CrossSectionDataType) const;
 
 template std::vector<double>
 OpenMCCrossSectionReader::getCrossSectionDataPoints<double>(
-    const std::string &, double, CrossSectionDataType);
+    const std::string &, double, CrossSectionDataType) const;
 
 template std::vector<float>
-OpenMCCrossSectionReader::readDataPointFromFile<float>(const std::string &,
-                                                       float,
-                                                       CrossSectionDataType);
+OpenMCCrossSectionReader::readDataPointFromFile<float>(
+    const std::string &, float, CrossSectionDataType) const;
 
 template std::vector<double>
-OpenMCCrossSectionReader::readDataPointFromFile<double>(const std::string &,
-                                                        double,
-                                                        CrossSectionDataType);
+OpenMCCrossSectionReader::readDataPointFromFile<double>(
+    const std::string &, double, CrossSectionDataType) const;
 
 } // namespace neuxs
