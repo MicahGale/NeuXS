@@ -6,17 +6,23 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-#include <cuco/static_map.cuh>
+#include <cuco/dynamic_map.cuh>
 
 #include "hdf5.h"
 
+#include "cross_section_reader.h"
+#include "material.cuh"
+
 namespace neuxs {
+
+class OpenMCCrossSectionReader;
 
 template <typename T> using DeviceVector = thrust::device_vector<T>;
 template <typename T> using HostVector = thrust::host_vector<T>;
+using Isotope = NuclideComponent;
 
-enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
-
+// ============= Main play ground for different data structure ==========
+// =======================================================================
 /*
  * CrossSectionGridPoint is the basic singular templated data structure we will
  * explore for AoS data structure. Energy grid needs to be separate.
@@ -24,7 +30,7 @@ enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
 
 template <typename T> struct CrossSectionGridPoint {
 
-  CrossSectionGridPoint(T energy, T sigma_s, T sigma_f, T sigma_c)
+  CrossSectionGridPoint(T sigma_s, T sigma_f, T sigma_c)
       : _sigma_s(sigma_s), _sigma_f(sigma_f), _sigma_c(sigma_c),
         _sigma_t(_sigma_c + _sigma_f + _sigma_s) {}
 
@@ -46,6 +52,7 @@ template <typename T> struct CrossSectionArray {
                     DeviceVector<T> sigma_f, DeviceVector<T> sigma_c)
       : _sigma_s(sigma_s), _sigma_f(sigma_f), _sigma_c(sigma_c) {
 
+    _sigma_t.resize(_sigma_s.size());
     for (size_t i = 0; i < _sigma_s.size(); i++)
       _sigma_t[i] = _sigma_s[i] + _sigma_f[i] + _sigma_c[i];
   }
@@ -58,6 +65,10 @@ template <typename T> struct CrossSectionArray {
 
 template <typename T> struct HashMap {};
 
+// ===================Cross section Base class ====================
+//              This is only for a single nuclide
+// ================================================================
+
 /*
  * Base class for cross-section data type. T1 will be cross-section data
  * structure.T2 will numeric data type. either float of double. All the daughter
@@ -67,32 +78,61 @@ template <typename T> struct HashMap {};
 
 template <typename T1, typename T2> class CrossSection {
 public:
-  // It needs to be abstract as we will implement
-  // different kind of interpolation methods
+  /* cross setter from OpenMCCrossSectionReader object
+   * this method will use the OpenMCCrossSectionReader object
+   * to set the custom data type associated with that cross_section
+   * class.
+   */
+
+  __host__ void setCrossSection(const OpenMCCrossSectionReader &reader,
+                                Isotope &nuclide) = 0;
+
+  /* It needs to be abstract as we will implement
+   * different kind of interpolation methods
+   */
   __device__ virtual CrossSectionGridPoint<T2> getCrossSection(T2 *energy) = 0;
-  HostVector<T2> _energy;
+
+protected:
+  /* play ground for different grid search methodology
+   */
+  __device__ virtual size_t searchEnergyGrid(T2 *energy) = 0;
+
+  // Energy grid. I need to talk to Micah about this
+  // design and there could be a future change if we decide to  use energy
+  // grid's lethargy value for search. Just an idea.
+
+  DeviceVector<T2> _energy;
 };
 
 template <typename T>
 class AoSLinear : public CrossSection<CrossSectionGridPoint<T>, T> {
+
 public:
+  __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
+                                        Isotope &nuclide) override;
+
   // linear-linear interpolation methods here
-  __device__ virtual CrossSectionGridPoint<T> getCrossSection() override;
+  __device__ virtual CrossSectionGridPoint<T>
+  getCrossSection(T *energy) override;
 
 private:
   DeviceVector<CrossSectionGridPoint<T>> _device_data;
 };
 
 template <typename T> class SoALinear : CrossSection<CrossSectionArray<T>, T> {
+
 public:
-  __device__ virtual CrossSectionGridPoint<T> getCrossSection() override;
+  __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
+                                        Isotope &nuclide) override;
+
+  // linear-linear interpolation methods here
+  __device__ virtual CrossSectionGridPoint<T>
+  getCrossSection(T *energy) override;
 
 private:
+  DeviceVector<CrossSectionArray<T>> _device_data;
 };
 
-__device__ void energy_binary_search(float *particle_energy,
-                                     CrossSectionDataType reaction_type,
-                                     float *cross_section);
 } // namespace neuxs
 
 #endif // NEUXS_CROSS_SECTION_CUH

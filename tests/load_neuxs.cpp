@@ -3,10 +3,10 @@
 #include <iostream>
 
 void test_cross_section_data() {
-  neuxs::OpenMCCrossSectionReader<float> reader;
+  neuxs::OpenMCCrossSectionReader reader;
 
-  auto energy = reader.getEnergyDataPoints("U236", 250);
-  auto xs = reader.getCrossSectionDataPoints(
+  auto energy = reader.getEnergyDataPoints<float>("U236", 250);
+  auto xs = reader.getCrossSectionDataPoints<float>(
       "U236", 250, neuxs::CrossSectionDataType::SCATTERING);
 
   assert(!energy.empty());
@@ -16,7 +16,7 @@ void test_cross_section_data() {
 }
 
 void test_dataset_path() {
-  neuxs::OpenMCCrossSectionReader<float> reader("/dummy");
+  neuxs::OpenMCCrossSectionReader reader("/dummy");
 
   assert(reader.buildDatasetPath(
              250.0f, neuxs::CrossSectionDataType::SCATTERING,
