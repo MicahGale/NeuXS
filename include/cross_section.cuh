@@ -91,7 +91,6 @@ public:
    */
   __device__ virtual CrossSectionGridPoint<T2> getCrossSection(T2 *energy) = 0;
 
-protected:
   /* play ground for different grid search methodology
    */
   __device__ virtual size_t searchEnergyGrid(T2 *energy) = 0;
@@ -110,12 +109,11 @@ public:
   __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
                                         NuclideComponent &nuclide) override;
 
-    __device__ virtual size_t searchEnergyGrid(T *energy) override{};
+  __device__ virtual size_t searchEnergyGrid(T *energy) override {};
   // linear-linear interpolation methods here
   __device__ virtual CrossSectionGridPoint<T>
-  getCrossSection(T *energy) override{};
+  getCrossSection(T *energy) override {};
 
-private:
   DeviceVector<CrossSectionGridPoint<T>> _device_data;
 };
 
@@ -130,7 +128,6 @@ public:
   __device__ virtual CrossSectionGridPoint<T>
   getCrossSection(T *energy) override;
 
-private:
   CrossSectionArray<T> _device_data;
 };
 
