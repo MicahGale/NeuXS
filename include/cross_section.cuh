@@ -46,7 +46,7 @@ template <typename T> struct CrossSectionGridPoint {
  */
 
 template <typename T> struct CrossSectionArray {
-
+  CrossSectionArray() = default;
   CrossSectionArray(DeviceVector<T> sigma_s, DeviceVector<T> sigma_f,
                     DeviceVector<T> sigma_c)
       : _sigma_s(sigma_s), _sigma_f(sigma_f), _sigma_c(sigma_c) {
@@ -123,10 +123,11 @@ public:
   __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
                                         NuclideComponent &nuclide) override;
 
-  __device__ virtual size_t searchEnergyGrid(T *energy) override;
+  __device__ virtual size_t searchEnergyGrid(T *energy) override {};
+
   // linear-linear interpolation methods here
   __device__ virtual CrossSectionGridPoint<T>
-  getCrossSection(T *energy) override;
+  getCrossSection(T *energy) override {};
 
   CrossSectionArray<T> _device_data;
 };

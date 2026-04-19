@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-find $PWD/include/ $PWD/src/ $PWD/tests/ \
+find $PWD/include/ $PWD/src/ $PWD/tests/ $PWD/examples \
   -type f \
   -regex '.*\.\(cu\|cuh\|cpp\|cxx\|h\)$' \
   -print0 |

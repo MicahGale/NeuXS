@@ -95,4 +95,12 @@ template void
 AoSLinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
                                    NuclideComponent &nuclide);
 
+template void
+SoALinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
+                                   NuclideComponent &nuclide);
+
+template void
+SoALinear<float>::setCrossSection(const OpenMCCrossSectionReader &reader,
+                                  NuclideComponent &nuclide);
+
 } // namespace neuxs
