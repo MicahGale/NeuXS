@@ -40,7 +40,7 @@ template <typename T> struct CrossSectionGridPoint {
 };
 
 /*
- * CrossSectionGridPoint is the basic singular templated data structure we will
+ * CrossSectionArray is the basic singular templated data structure we'll use
  * explore for SoA data structure. Cross-section data will be stored in device
  * vector.
  */
