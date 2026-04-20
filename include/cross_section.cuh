@@ -22,6 +22,9 @@ using DeviceVector = thrust::device_vector<FPrecision>;
 template <typename FPrecision>
 using HostVector = thrust::host_vector<FPrecision>;
 
+template <typename FPrecision>
+using DynamicMap = cuco::dynamic_map<int, FPrecision>;
+
 // ============= Main play ground for different data structure ==========
 // =======================================================================
 /*
@@ -66,7 +69,13 @@ template <typename FPrecision> struct CrossSectionArray {
   DeviceVector<FPrecision> _sigma_t;
 };
 
-template <typename FPrecision> struct HashMap {};
+template <typename FPrecision> struct HashGrid {
+  size_t getHashIndex(FPrecision *energy);
+
+  DynamicMap<FPrecision> _map;
+  FPrecision _grid_energy_minimum;
+  FPrecision _grid_energy_delta;
+};
 
 // ===================Cross section Base class ====================
 //              This is only for a single nuclide
@@ -90,21 +99,6 @@ public:
   __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
                                         NuclideComponent &nuclide) = 0;
 
-  /* It needs to be abstract as we will implement
-   * different kind of interpolation methods
-   */
-  __device__ virtual void
-  getCrossSection(FPrecision *energy,
-                  CrossSectionGridPoint<FPrecision> *xs_grid) = 0;
-
-  /* play ground for different grid search methodology
-   */
-  __device__ virtual size_t searchEnergyGrid(FPrecision *energy) = 0;
-
-  // Energy grid. I need to talk to Micah about this
-  // design and there could be a future change if we decide to  use energy
-  // grid's lethargy value for search. Just an idea.
-
   DeviceVector<FPrecision> _energy;
 };
 
@@ -116,12 +110,20 @@ public:
   __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
                                         NuclideComponent &nuclide) override;
 
-  __device__ virtual size_t searchEnergyGrid(FPrecision *energy) override {};
+  /* It needs to be abstract as we will implement
+   * different kind of interpolation methods
+   */
+  __device__ void getCrossSection(FPrecision *energy,
+                                  CrossSectionGridPoint<FPrecision> *xs_grid) {
+  };
 
-  // linear-linear interpolation methods here
-  __device__ virtual void
-  getCrossSection(FPrecision *energy,
-                  CrossSectionGridPoint<FPrecision> *xs_grid) override {};
+  /* play ground for different grid search methodology
+   */
+  __device__ size_t searchEnergyGrid(FPrecision *energy) {};
+
+  // Energy grid. I need to talk to Micah about this
+  // design and there could be a future change if we decide to  use energy
+  // grid's lethargy value for search. Just an idea.
 
   DeviceVector<CrossSectionGridPoint<FPrecision>> _device_data;
 };
@@ -133,14 +135,28 @@ public:
   __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
                                         NuclideComponent &nuclide) override;
 
-  __device__ virtual size_t searchEnergyGrid(FPrecision *energy) override {};
+  /* It needs to be abstract as we will implement
+   * different kind of interpolation methods
+   */
+  __device__ void getCrossSection(FPrecision *energy,
+                                  CrossSectionGridPoint<FPrecision> *xs_grid);
 
-  // linear-linear interpolation methods here
-  __device__ virtual void
-  getCrossSection(FPrecision *energy,
-                  CrossSectionGridPoint<FPrecision> *xs_grid) override {};
+  /* play ground for different grid search methodology
+   */
+  __device__ size_t searchEnergyGrid(FPrecision *energy);
+
+  // Energy grid. I need to talk to Micah about this
+  // design and there could be a future change if we decide to  use energy
+  // grid's lethargy value for search. Just an idea.
 
   CrossSectionArray<FPrecision> _device_data;
+};
+
+template <typename FPrecision>
+class LogarithmicHashGrid
+    : public CrossSection<HashGrid<FPrecision>, FPrecision> {
+
+  LogarithmicHashGrid();
 };
 
 } // namespace neuxs
