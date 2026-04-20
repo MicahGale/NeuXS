@@ -1,14 +1,14 @@
 # NeuXS 
 A new way to test evaluating neutron cross-sections on GPUs.
 
-![CI](https://github.com/MicahGale/NeuXS/actions/workflows/workflow.yml/badge.svg)
+![CI](https://github.com/MicahGale/NeuXS/actions/workflows/workflow.yml/badge.svg?branch=main)
 ![CUDA](https://img.shields.io/badge/CUDA-12.0+-green)
-![C++](https://img.shields.io/badge/C++-14/17-blue)
+![C++](https://img.shields.io/badge/C++-17-blue)
 
 ## Overview
 
 NeuXS is a high-performance Nvidia-GPU-accelerated library for evaluating neutron cross-section look up
-for Monte Carlo particle transport. It provides a (!)flexible, type-safe abstractions framework
+for Monte Carlo particle transport. It provides a (!) flexible, type-safe abstractions framework
 for testing neutron cross-section look strategies optimized for GPU computation.
 
 NeuXS isn't a particle transport code. This started as an HPC class project by Micah Gale and Ebny Walid Ahammed.
@@ -32,11 +32,11 @@ It is still under continuous development.
     - Download: https://developer.nvidia.com/cuda-downloads
     - Required for GPU compilation and Thrust library
 
-- **C++ Compiler**: C++14 or higher
+- **C++ Compiler**: C++17 or higher
     - NVIDIA nvcc (included with CUDA Toolkit)
-    - GCC 5.0+ or Clang 3.8+ for host compilation
+    - GCC 13.3.0 for host compilation
 
-- **CMake**: Version 3.10 or higher
+- **CMake**: Version 3.29 or higher
     - Download: https://cmake.org/download/
     - Used for cross-platform build configuration
 
@@ -53,7 +53,9 @@ It is still under continuous development.
 ### System Requirements
 
 **OS**: Linux (We have only tested on linux!)
-**COMPILER**: NVCC 
+
+**COMPILER**: NVCC and gcc
+
 **GPU**: Any Nvidia GPU that supports CUDA 12.0 (Cause that's what we have)
 
 
