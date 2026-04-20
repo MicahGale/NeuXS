@@ -25,6 +25,12 @@ using HostVector = thrust::host_vector<FPrecision>;
 template <typename FPrecision>
 using DynamicMap = cuco::dynamic_map<int, FPrecision>;
 
+template <typename T> __device__ T device_log(T val);
+template <> __device__ float device_log<float>(float val) { return logf(val); }
+template <> __device__ double device_log<double>(double val) {
+  return log(val);
+}
+
 // ============= Main play ground for different data structure ==========
 // =======================================================================
 /*
@@ -70,9 +76,21 @@ template <typename FPrecision> struct CrossSectionArray {
 };
 
 template <typename FPrecision> struct HashGrid {
-  size_t getHashIndex(FPrecision *energy);
+  // credit: https://github.com/ANL-CESAR/XSBench
+  // Logarithmic_Hash_Grid_Search( Energy E, Material M ):
+  //	macroscopic XS = 0
+  //	hash_index = grid_delta * (ln(E) - grid_minimum_energy)
+  //	for each nuclide in M do:
+  //		i_low  = unionized_grid[nuclide, hash_index]
+  //		i_high = unionized_grid[nuclide, hash_index+1]
+  //		index = binary search in range(i_low, i_high) to find E in
+  // nuclide grid 		interpolate data from grid[nuclide, index]
+  // macroscopic XS += data
+  __device__ void getHashIndex(FPrecision *energy, size_t *hash_index) {
+    *hash_index = _grid_energy_delta *
+                  (device_log<FPrecision>(energy) - _grid_energy_minimum);
+  }
 
-  DynamicMap<FPrecision> _map;
   FPrecision _grid_energy_minimum;
   FPrecision _grid_energy_delta;
 };
@@ -145,18 +163,23 @@ public:
    */
   __device__ size_t searchEnergyGrid(FPrecision *energy);
 
-  // Energy grid. I need to talk to Micah about this
-  // design and there could be a future change if we decide to  use energy
-  // grid's lethargy value for search. Just an idea.
-
   CrossSectionArray<FPrecision> _device_data;
 };
 
 template <typename FPrecision>
-class LogarithmicHashGrid
-    : public CrossSection<HashGrid<FPrecision>, FPrecision> {
+class LogarithmicHashAoS : public AoSLinear<FPrecision> {
+public:
+  // setter method _hash_info
+  __host__ void setLogarithmicHashGrid();
 
-  LogarithmicHashGrid();
+  // we implement the interpolation method here
+  __device__ void getCrossSection(FPrecision *energy,
+                                  CrossSectionGridPoint<FPrecision> *xs_grid);
+  // This method will call the getHashIndex
+  __device__ size_t searchEnergyGrid(FPrecision *energy);
+
+protected:
+  HashGrid<FPrecision> _hash_info;
 };
 
 } // namespace neuxs
