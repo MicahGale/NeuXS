@@ -104,6 +104,23 @@ template <typename FPrecision> struct HashGrid {
  * structure. FPrecision will numeric data type. either float of double. All the
  * daughter class will just declare the T1 based on which cross-section data
  * structure they are using.
+ *
+ * The over all data structure map is given bellow. For the sake our own
+ * sanity this needs to be changed every time we implement a new data
+ * struct or change the hierarchy
+ *
+ *                     CrossSection<XSType, FPrecision>
+ *              (This is the base class. Any new data structure class
+ *               needs to inherit either from this or any of the
+ *               daughter class. In the inherited class we implement
+ *               the lookup and interpolation methods)
+ *                                    │
+ *              ┌─────────────────────┴─────────────────────┐
+ *              │                                           │
+ *     AoSLinear<FPrecision>                    SoALinear<FPrecision>
+ *              │
+ *              │
+ *  LogarithmicHashAoS<FPrecision>
  */
 
 template <typename XSType, typename FPrecision> class CrossSection {
@@ -114,8 +131,9 @@ public:
    * class.
    */
 
-  __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
-                                        NuclideComponent &nuclide) = 0;
+  __host__ virtual void
+  setCrossSection(const OpenMCCrossSectionReader &reader,
+                  NuclideComponent<FPrecision> &nuclide) = 0;
 
   DeviceVector<FPrecision> _energy;
 };
@@ -125,8 +143,9 @@ class AoSLinear
     : public CrossSection<CrossSectionGridPoint<FPrecision>, FPrecision> {
 
 public:
-  __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
-                                        NuclideComponent &nuclide) override;
+  __host__ virtual void
+  setCrossSection(const OpenMCCrossSectionReader &reader,
+                  NuclideComponent<FPrecision> &nuclide) override;
 
   /* It needs to be abstract as we will implement
    * different kind of interpolation methods
@@ -147,11 +166,13 @@ public:
 };
 
 template <typename FPrecision>
-class SoALinear : CrossSection<CrossSectionArray<FPrecision>, FPrecision> {
+class SoALinear
+    : public CrossSection<CrossSectionArray<FPrecision>, FPrecision> {
 
 public:
-  __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
-                                        NuclideComponent &nuclide) override;
+  __host__ virtual void
+  setCrossSection(const OpenMCCrossSectionReader &reader,
+                  NuclideComponent<FPrecision> &nuclide) override;
 
   /* It needs to be abstract as we will implement
    * different kind of interpolation methods
