@@ -1,56 +1,110 @@
-#include "cross_section.cuh"
 #include <algorithm>
 #include <filesystem>
+#include <thrust/copy.h>
+#include <thrust/device_vector.h>
+
+#include "cross_section.cuh"
+#include "cross_section_reader.h"
 
 namespace neuxs {
 
-template <typename T>
-__device__ void CrossSection<T>::getCrossSection(DeviceVector<float> *energy,
-                                                 DeviceVector<float> *sigma_s,
-                                                 DeviceVector<float> *sigma_c,
-                                                 DeviceVector<float> *sigma_f,
-                                                 DeviceVector<float> *sigma_t) {
-  return static_cast<T>(this)->get_sigma(energy, sigma_s, sigma_c, sigma_f,
-                                         sigma_t);
+template <typename FPrecision>
+void AoSLinear<FPrecision>::setCrossSection(
+    const OpenMCCrossSectionReader &reader, NuclideComponent &nuclide) {
+
+  auto nuclide_name = std::string(nuclide._name);
+  auto energy_host = reader.getEnergyDataPoints<FPrecision>(
+      nuclide_name, nuclide._temperature);
+  const auto size = energy_host.size();
+
+  this->_energy =
+      DeviceVector<FPrecision>(energy_host.begin(), energy_host.end());
+
+  auto scattering = reader.getCrossSectionDataPoints<FPrecision>(
+      nuclide_name, nuclide._temperature, CrossSectionDataType::SCATTERING);
+
+  auto capture = reader.getCrossSectionDataPoints<FPrecision>(
+      nuclide_name, nuclide._temperature, CrossSectionDataType::CAPTURE);
+
+  std::vector<FPrecision> fission;
+  if (nuclide._allows_fission) {
+    fission = reader.getCrossSectionDataPoints<FPrecision>(
+        nuclide_name, nuclide._temperature, CrossSectionDataType::FISSION);
+    if (fission.empty())
+      fission.reserve(size);
+
+    if (fission.empty()) {
+      fission.assign(size, static_cast<FPrecision>(0));
+    }
+  } else {
+    fission.assign(size, static_cast<FPrecision>(0));
+  }
+
+  for (std::size_t i = 0; i < size; i++) {
+    this->_device_data.push_back(CrossSectionGridPoint<FPrecision>(
+        scattering[i], fission[i], capture[i]));
+  }
 }
 
-template <typename T>
-__device__ void CrossSection<T>::interpolate(float x1, float x2, float x_val,
-                                             float y1, float y2, float *y_val) {
-  float x_delta = x2 - x1;
-  float y_delta = y2 - y1;
-  *y_val = y1 + y_delta * (x_val - x1) / x_delta;
+template <typename FPrecision>
+void SoALinear<FPrecision>::setCrossSection(
+    const OpenMCCrossSectionReader &reader, NuclideComponent &nuclide) {
+  auto nuclide_name = std::string(nuclide._name);
+
+  auto energy_host = reader.getEnergyDataPoints<FPrecision>(
+      nuclide_name, nuclide._temperature);
+  const auto size = energy_host.size();
+
+  this->_energy =
+      DeviceVector<FPrecision>(energy_host.begin(), energy_host.end());
+
+  auto scattering_host = reader.getCrossSectionDataPoints<FPrecision>(
+      nuclide_name, nuclide._temperature, CrossSectionDataType::SCATTERING);
+
+  auto capture_host = reader.getCrossSectionDataPoints<FPrecision>(
+      nuclide_name, nuclide._temperature, CrossSectionDataType::CAPTURE);
+
+  std::vector<FPrecision> fission_host;
+  if (nuclide._allows_fission) {
+    fission_host = reader.getCrossSectionDataPoints<FPrecision>(
+        nuclide_name, nuclide._temperature, CrossSectionDataType::FISSION);
+
+    if (fission_host.empty())
+      fission_host.assign(size, static_cast<FPrecision>(0));
+
+  } else
+    fission_host.assign(size, static_cast<FPrecision>(0));
+
+  // I kinda agree now that when I made the cross-section reader I made some
+  // poor choice
+  DeviceVector<FPrecision> scattering_device(scattering_host.begin(),
+                                             scattering_host.end());
+  DeviceVector<FPrecision> fission_device(fission_host.begin(),
+                                          fission_host.end());
+  DeviceVector<FPrecision> capture_device(capture_host.begin(),
+                                          capture_host.end());
+
+  // The constructor will compute sigma_t = sigma_s + sigma_f + sigma_c
+  this->_device_data = CrossSectionArray<FPrecision>(
+      scattering_device, fission_device, capture_device);
 }
 
-NuclideCrossSectionSet::NuclideCrossSectionSet(
-    const std::vector<float> &energy, const std::vector<float> &sigma_s,
-    const std::vector<float> &sigma_f, const std::vector<float> &sigma_t,
-    const std::vector<float> &sigma_c) {
+// need explicit definition otherwise compiler goes wild
 
-  preCheck(energy, sigma_s, sigma_f, sigma_t, sigma_c);
+template void
+AoSLinear<float>::setCrossSection(const OpenMCCrossSectionReader &reader,
+                                  NuclideComponent &nuclide);
 
-  const auto size = energy.size();
-  _cross_section_grids.reserve(size);
+template void
+AoSLinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
+                                   NuclideComponent &nuclide);
 
-  for (size_t i = 0; i < size; i++)
-    _cross_section_grids.push_back(CrossSectionGridPoint(
-        energy[i], sigma_s[i], sigma_f[i], sigma_t[i], sigma_c[i]));
+template void
+SoALinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
+                                   NuclideComponent &nuclide);
 
-  _cross_section_grids.shrink_to_fit();
-}
+template void
+SoALinear<float>::setCrossSection(const OpenMCCrossSectionReader &reader,
+                                  NuclideComponent &nuclide);
 
-void NuclideCrossSectionSet::preCheck(const std::vector<float> &energy,
-                                      const std::vector<float> &sigma_s,
-                                      const std::vector<float> &sigma_f,
-                                      const std::vector<float> &sigma_t,
-                                      const std::vector<float> &sigma_c) {
-
-  const auto n = energy.size();
-  const bool check = (sigma_s.size() == n && sigma_f.size() == n &&
-                      sigma_t.size() == n && sigma_c.size() == n);
-
-  if (!check)
-    throw std::runtime_error(" Invalid cross section data point. Size of "
-                             "reaction data don't match with each other");
-}
-}; // namespace neuxs
+} // namespace neuxs

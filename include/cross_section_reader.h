@@ -4,18 +4,14 @@
 #include <string>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+#include <type_traits>
+#include <vector>
 
 #include "hdf5.h"
 
 namespace neuxs {
 
-extern "C" enum class CrossSectionDataType {
-  ENERGY,
-  SCATTERING,
-  FISSION,
-  CAPTURE,
-  TOTAL
-};
+enum class CrossSectionDataType { ENERGY, SCATTERING, FISSION, CAPTURE, TOTAL };
 
 inline int getMTNumber(CrossSectionDataType type) {
   switch (type) {
@@ -30,29 +26,46 @@ inline int getMTNumber(CrossSectionDataType type) {
   }
 }
 
-/*  A wrapper class around for reading HDF5 cross-section data
- * mostly using hfd5 and openmc api
+/* Template helper to map C++ types to HDF5 types
  */
+template <typename T> struct HDF5TypeTraits;
+
+template <> struct HDF5TypeTraits<float> {
+  static hid_t get_type() { return H5T_NATIVE_FLOAT; }
+};
+
+template <> struct HDF5TypeTraits<double> {
+  static hid_t get_type() { return H5T_NATIVE_DOUBLE; }
+};
+
+/*  A templated wrapper class for reading HDF5 cross-section data
+ * using HDF5 and OpenMC API. Supports float and double types.
+ */
+
 class OpenMCCrossSectionReader {
 public:
-  /*This constructor reader will look for the
-   * OPENMC_CROSS_SECTIONS ENV variable in the system
+  /* This constructor will look for the
+   * OPENMC_CROSS_SECTIONS environment variable in the system
    */
   OpenMCCrossSectionReader();
 
   explicit OpenMCCrossSectionReader(std::string cross_section_dir);
 
-  std::vector<float> getEnergyDataPoints(const std::string &isotope_name,
-                                         float temperature);
+  template <typename T>
+  std::vector<T> getEnergyDataPoints(const std::string &isotope_name,
+                                     T temperature) const;
 
-  std::vector<float> getCrossSectionDataPoints(const std::string &isotope_name,
-                                               float temperature,
-                                               CrossSectionDataType data_type);
+  template <typename T>
+  std::vector<T>
+  getCrossSectionDataPoints(const std::string &isotope_name, T temperature,
+                            CrossSectionDataType data_type) const;
+  template <typename T>
+  std::vector<T> readDataPointFromFile(const std::string &isotope_name,
+                                       T temperature,
+                                       CrossSectionDataType data_type) const;
 
-  std::vector<float> readDataPointFromFile(const std::string &isotope_name,
-                                           float temperature,
-                                           CrossSectionDataType data_type);
   std::string buildFilePath(const std::string &isotope_name) const;
+
   std::string buildDatasetPath(float temperature,
                                CrossSectionDataType data_type,
                                int mt_number) const;

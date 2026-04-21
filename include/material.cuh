@@ -1,45 +1,61 @@
 #ifndef NEUXS_MATERIAL_H
 #define NEUXS_MATERIAL_H
 
-#include "cross_section.cuh"
+#include <cuda_runtime.h>
+#include <string>
 #include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 namespace neuxs {
 
 template <typename T> using DeviceVector = thrust::device_vector<T>;
 template <typename T> using HostVector = thrust::host_vector<T>;
 
+enum class CollisionType { SCATTERING, FISSION, CAPTURE };
+
 class OpenMCCrossSectionReader;
-template <typename T> struct NuclideComponent {
-  CrossSection<T> _nuclide_cross_section;
-  float _atom_dens;
+
+struct NuclideComponent {
+
+  NuclideComponent(char *name, unsigned int id, float atom_density,
+                   float temperature, bool allow_fission)
+      : _name(name), _nuclide_id(id), _atom_dens(atom_density),
+        _temperature(temperature), _allows_fission(allow_fission) {}
+
+  char *_name;
+  const unsigned int _nuclide_id;
+  const float _atom_dens;
+  const float _temperature;
+  const bool _allows_fission;
 };
 
-template <typename T> class Material {
+/*
+ * Templated Material class
+ * T1 what type of cross-section data structure will be used for example
+ * AoSLinear<float> T2 Numeric value type
+ */
+template <typename T1, typename T2> class Material {
 public:
   Material(OpenMCCrossSectionReader &cross_section_reader);
 
   __host__ void addIsotope() = 0;
 
-  __host__
+  __host__ void buildEnergyGrid(std::string isotope_name);
 
-      __device__ void
-      getCrossSection(DeviceVector<float> *energy, DeviceVector<float> *sigma_s,
-                      DeviceVector<float> *sigma_c,
-                      DeviceVector<float> *sigma_f,
-                      DeviceVector<float> *sigma_t);
+  __device__ void getMacroscopicXS(T2 *energy, T1 *cross_section);
 
-  __device__ void decideIfCollide(DeviceVector<float> *energies,
-                                  DeviceVector<float> *distance_escape,
-                                  thrust::device_vector<bool> *collide);
+  __device__ void decideIfCollide(T2 *energy, bool *collides);
 
-  __device__ void decideCollideType(
-      DeviceVector<float> *energy,
-      thrust::device_vector<CrossSectionDataType> *collision_types);
+  __device__ CollisionType decideCollideType(T2 *energy);
 
 private:
   const OpenMCCrossSectionReader &_cross_section_reader;
-  thrust::device_vector<NuclideComponent<T>> _components;
+
+  // Device vector of nuclides
+  DeviceVector<NuclideComponent> _nuclides;
+
+  // templated data struct. We will define when we declare the material class.
+  DeviceVector<T1> _cross_section_data;
 };
 
 } // namespace neuxs

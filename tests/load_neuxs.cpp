@@ -2,6 +2,19 @@
 #include <cassert>
 #include <iostream>
 
+void test_cross_section_data() {
+  neuxs::OpenMCCrossSectionReader reader;
+
+  auto energy = reader.getEnergyDataPoints<float>("U236", 250);
+  auto xs = reader.getCrossSectionDataPoints<float>(
+      "U236", 250, neuxs::CrossSectionDataType::SCATTERING);
+
+  assert(!energy.empty());
+  assert(energy.size() == xs.size());
+
+  std::cout << "test_cross_section_data passed\n";
+}
+
 void test_dataset_path() {
   neuxs::OpenMCCrossSectionReader reader("/dummy");
 
@@ -31,6 +44,11 @@ void test_dataset_path() {
 }
 
 int main() {
+
+  // commenting this one out as we need actual cross-section data to
+  // test this
+
+  // test_cross_section_data();
   test_dataset_path();
 
   std::cout << "All tests passed\n";
