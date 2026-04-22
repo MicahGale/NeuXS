@@ -84,3 +84,20 @@ It is still under continuous development.
    make -j$(nproc)
    ```
    
+
+### Debug guidelines
+
+I hope you never hit that rabbit hole and blow up your leg with this poorly designed software
+but if you then cuda-gdb could be your (read with air quotes) friend. 
+
+First remove the existing build director and recompile with `Debug` mode.
+   ```bash
+   rm -rf build && mkdir build 
+   cd build 
+   cmake -DCMAKE_BUILD_TYPE=Debug ..
+   make -j $(nproc)
+   ```
+Then, 
+   ```bash
+   cuda-gdb ./path_to_executable
+   ```
