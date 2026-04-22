@@ -2,18 +2,19 @@
 #include <iostream>
 
 int main() {
+  neuxs::MemoryManager memory_manager;
   constexpr int N = 1024;
 
-  auto h = neuxs::allocateLockedHost<float>(N);
-  auto d = neuxs::allocateDevice<float>(N);
+  auto h = memory_manager.allocateLockedHost<float>(N);
+  auto d = memory_manager.allocateDevice<float>(N);
 
   for (int i = 0; i < N; i++) {
     h[i] = static_cast<float>(i);
   }
 
-  neuxs::copyToDevice(h, d, N);
-  neuxs::copyToHost(d, h, N);
-  neuxs::deviceSynchronize();
+  memory_manager.copyToDevice<float>(h, d, N);
+  memory_manager.copyToHost<float>(d, h, N);
+  memory_manager.deviceSynchronize();
 
   if (h[123] != 123.0f) {
     return 1;
@@ -21,8 +22,8 @@ int main() {
 
   std::cout << "Test PASSED\n";
   // be a good citizen
-  neuxs::freeDevice(d);
-  neuxs::freeHost(h);
+  memory_manager.freeDevice<float>(d);
+  memory_manager.freeHost<float>(h);
 
   return 0;
 }
