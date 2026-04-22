@@ -3,31 +3,35 @@
 
 #include <cuda_runtime.h>
 
+#include "cross_section.cuh"
+#include "material.cuh"
+
 namespace neuxs {
 
-struct Material;
+struct Particle;
 
-struct Cell {
-  float _volume;
+template <typename FPrecision> struct Cell {
+
+  Cell(FPrecision volume, unsigned int id) : _volume(volume), _id(id) {}
+  FPrecision _volume;
   unsigned int _id;
-  Material *_material;
-  Cell *_neighbor_cells;
+
+  // Raw pointers as we don't to copy same materials everywhere.
+  NuclideComponent<FPrecision> *_material = nullptr;
+
+  // Raw pointers as we don't to copy same materials everywhere.
+  Cell<FPrecision> *_neighbor_cells = nullptr;
+
   unsigned int _num_neighbors;
 
-  Cell(float volume, unsigned int id);
+  void __host__ setMaterial(NuclideComponent<FPrecision> *material);
+  void __host__ setNeighboringCells(Cell<FPrecision> *cell,
+                                    unsigned int n_neighbors);
 
-  void __host__ setMaterial(Material *material);
+  bool __device__ particleEscapesTheCell(Particle* particle);
+  Cell *__device__ getRandomNeighborCell(Particle* particle);
 
-  void __host__ setNeighboringCells(Cell *cells,
-                                    unsigned int number_of_neighbors);
-
-  void __host__ checkNeighboringCellIDs();
-
-  bool __device__ particleEscapesTheCell(float particle_energy);
-
-  Cell *__device__ getRandomNeighborCell(float particle_energy);
-
-  const Material *getMaterial() const;
+  const NuclideComponent<FPrecision> *getMaterial() const;
 };
 
 } // namespace neuxs
