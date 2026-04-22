@@ -10,10 +10,10 @@ int main() {
   neuxs::OpenMCCrossSectionReader reader;
 
   char *name = "U235"; // C++ will give warning for a weird reason!
-  neuxs::NuclideComponent u235(name, 92235,
-                               4.8e22f, // atom density (example value)
-                               250.0f,  // temperature in K
-                               true     // fission allowed
+  neuxs::NuclideComponent<double> u235(name,
+                                       4.8e22f, // atom density (example value)
+                                       250.0f,  // temperature in K
+                                       true     // fission allowed
   );
   auto aos_data = neuxs::AoSLinear<double>();
   aos_data.setCrossSection(reader, u235);

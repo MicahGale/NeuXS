@@ -10,7 +10,8 @@ namespace neuxs {
 
 template <typename FPrecision>
 void AoSLinear<FPrecision>::setCrossSection(
-    const OpenMCCrossSectionReader &reader, NuclideComponent &nuclide) {
+    const OpenMCCrossSectionReader &reader,
+    NuclideComponent<FPrecision> &nuclide) {
 
   auto nuclide_name = std::string(nuclide._name);
   auto energy_host = reader.getEnergyDataPoints<FPrecision>(
@@ -48,7 +49,8 @@ void AoSLinear<FPrecision>::setCrossSection(
 
 template <typename FPrecision>
 void SoALinear<FPrecision>::setCrossSection(
-    const OpenMCCrossSectionReader &reader, NuclideComponent &nuclide) {
+    const OpenMCCrossSectionReader &reader,
+    NuclideComponent<FPrecision> &nuclide) {
   auto nuclide_name = std::string(nuclide._name);
 
   auto energy_host = reader.getEnergyDataPoints<FPrecision>(
@@ -93,18 +95,18 @@ void SoALinear<FPrecision>::setCrossSection(
 
 template void
 AoSLinear<float>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                  NuclideComponent &nuclide);
+                                  NuclideComponent<float> &nuclide);
 
 template void
 AoSLinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                   NuclideComponent &nuclide);
+                                   NuclideComponent<double> &nuclide);
 
 template void
 SoALinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                   NuclideComponent &nuclide);
+                                   NuclideComponent<double> &nuclide);
 
 template void
 SoALinear<float>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                  NuclideComponent &nuclide);
+                                  NuclideComponent<float> &nuclide);
 
 } // namespace neuxs
