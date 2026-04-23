@@ -92,8 +92,6 @@ but if you do, then cuda-gdb could be your (read with air quotes) friend.
 
 First remove the existing build director and recompile with `Debug` mode.
    ```bash
-   rm -rf build && mkdir build 
-   cd build 
    cmake -DCMAKE_BUILD_TYPE=Debug ..
    make -j $(nproc)
    ```
