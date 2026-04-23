@@ -9,7 +9,7 @@ int main() {
 
   neuxs::OpenMCCrossSectionReader reader;
 
-  char *name = "U235"; // C++ will give warning for a weird reason!
+  const char *name = "U235"; // C++ will give warning for a weird reason!
   neuxs::NuclideComponent<double> u235(name,
                                        4.8e22f, // atom density (example value)
                                        250.0f,  // temperature in K
@@ -21,8 +21,7 @@ int main() {
   soa_data.setCrossSection(reader, u235);
 
   // copying the first grid and printing it out
-  neuxs::HostVector<neuxs::CrossSectionGridPoint<double>> grids_aos =
-      aos_data._device_data;
+  auto grids_aos = aos_data._device_data;
 
   double soa_sigma_s = soa_data._device_data._sigma_s[0];
   double soa_sigma_f = soa_data._device_data._sigma_f[0];

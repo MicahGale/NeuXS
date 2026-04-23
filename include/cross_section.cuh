@@ -41,7 +41,7 @@ template <> __device__ __forceinline__ double device_log<double>(double val) {
  */
 
 template <typename FPrecision> struct CrossSectionGridPoint {
-
+  CrossSectionGridPoint() {}
   CrossSectionGridPoint(FPrecision sigma_s, FPrecision sigma_f,
                         FPrecision sigma_c)
       : _sigma_s(sigma_s), _sigma_f(sigma_f), _sigma_c(sigma_c),
@@ -61,20 +61,11 @@ template <typename FPrecision> struct CrossSectionGridPoint {
 
 template <typename FPrecision> struct CrossSectionArray {
   CrossSectionArray() = default;
-  CrossSectionArray(DeviceVector<FPrecision> sigma_s,
-                    DeviceVector<FPrecision> sigma_f,
-                    DeviceVector<FPrecision> sigma_c)
-      : _sigma_s(sigma_s), _sigma_f(sigma_f), _sigma_c(sigma_c) {
 
-    _sigma_t.resize(_sigma_s.size());
-    for (size_t i = 0; i < _sigma_s.size(); i++)
-      _sigma_t[i] = _sigma_s[i] + _sigma_f[i] + _sigma_c[i];
-  }
-
-  DeviceVector<FPrecision> _sigma_s;
-  DeviceVector<FPrecision> _sigma_f;
-  DeviceVector<FPrecision> _sigma_c;
-  DeviceVector<FPrecision> _sigma_t;
+  FPrecision *_sigma_s;
+  FPrecision *_sigma_f;
+  FPrecision *_sigma_c;
+  FPrecision *_sigma_t;
 };
 
 template <typename FPrecision> struct HashGrid {
@@ -88,10 +79,7 @@ template <typename FPrecision> struct HashGrid {
   //		index = binary search in range(i_low, i_high) to find E in
   // nuclide grid 		interpolate data from grid[nuclide, index]
   // macroscopic XS += data
-  __device__ void getHashIndex(FPrecision *energy, size_t *hash_index) {
-    *hash_index = _grid_energy_delta *
-                  (device_log<FPrecision>(energy) - _grid_energy_minimum);
-  }
+  __device__ void getHashIndex(FPrecision *energy, size_t *hash_index);
 
   FPrecision _grid_energy_minimum;
   FPrecision _grid_energy_delta;
@@ -127,6 +115,8 @@ template <typename FPrecision> struct HashGrid {
 
 template <typename XSType, typename FPrecision> class CrossSection {
 public:
+  ~CrossSection() { delete[] _energy; }
+
   /* cross setter from OpenMCCrossSectionReader object
    * this method will use the OpenMCCrossSectionReader object
    * to set the custom data type associated with that cross_section
@@ -137,7 +127,7 @@ public:
   setCrossSection(const OpenMCCrossSectionReader &reader,
                   NuclideComponent<FPrecision> &nuclide) = 0;
 
-  DeviceVector<FPrecision> _energy;
+  FPrecision *_energy;
 };
 
 template <typename FPrecision>
@@ -145,6 +135,7 @@ class AoSLinear
     : public CrossSection<CrossSectionGridPoint<FPrecision>, FPrecision> {
 
 public:
+  ~AoSLinear() { delete[] _device_data; }
   __host__ virtual void
   setCrossSection(const OpenMCCrossSectionReader &reader,
                   NuclideComponent<FPrecision> &nuclide) override;
@@ -164,7 +155,7 @@ public:
   // design and there could be a future change if we decide to  use energy
   // grid's lethargy value for search. Just an idea.
 
-  DeviceVector<CrossSectionGridPoint<FPrecision>> _device_data;
+  CrossSectionGridPoint<FPrecision> *_device_data;
 };
 
 template <typename FPrecision>
@@ -172,6 +163,12 @@ class SoALinear
     : public CrossSection<CrossSectionArray<FPrecision>, FPrecision> {
 
 public:
+  ~SoALinear() {
+    delete[] _device_data._sigma_s;
+    delete[] _device_data._sigma_f;
+    delete[] _device_data._sigma_c;
+    delete[] _device_data._sigma_t;
+  };
   __host__ virtual void
   setCrossSection(const OpenMCCrossSectionReader &reader,
                   NuclideComponent<FPrecision> &nuclide) override;

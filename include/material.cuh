@@ -3,14 +3,8 @@
 
 #include <cuda_runtime.h>
 #include <string>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 
 namespace neuxs {
-
-template <typename T> using DeviceVector = thrust::device_vector<T>;
-template <typename T> using HostVector = thrust::host_vector<T>;
-
 enum class CollisionType { SCATTERING, FISSION, CAPTURE };
 
 class OpenMCCrossSectionReader;
@@ -41,13 +35,12 @@ template <typename FPrecision> struct NuclideComponent {
  */
 template <typename XSClass, typename FPrecision> class Material {
 public:
-  Material(OpenMCCrossSectionReader &cross_section_reader)
-      : _cross_section_reader(cross_section_reader) {}
+  Material(OpenMCCrossSectionReader &cross_section_reader,
+           unsigned int num_isotope)
+      : _cross_section_reader(cross_section_reader),
+        _num_isotopes(num_isotope) {}
 
-  __host__ void addIsotope(NuclideComponent<FPrecision> isotope) {
-    _nuclides.push_back(isotope);
-    this->setCrossSection(isotope);
-  }
+  __host__ void addIsotope(NuclideComponent<FPrecision> isotope) {}
 
   __device__ void getMacroscopicXS(FPrecision *energy,
                                    FPrecision *cross_section);
@@ -61,10 +54,12 @@ public:
   const OpenMCCrossSectionReader &_cross_section_reader;
 
   // Device vector of nuclides
-  DeviceVector<NuclideComponent<FPrecision>> _nuclides;
+  NuclideComponent<FPrecision> *_nuclides;
 
   // templated data struct. We will define when we declare the material class.
-  DeviceVector<XSClass> _cross_section_data;
+  XSClass *_cross_section_data;
+
+  const unsigned int _num_isotopes;
 };
 
 // explicit def
