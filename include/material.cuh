@@ -67,6 +67,8 @@ public:
   DeviceVector<XSClass> _cross_section_data;
 };
 
+// explicit def
+
 } // namespace neuxs
 
 #endif // NEUXS_MATERIAL_H
