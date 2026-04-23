@@ -38,14 +38,35 @@ void AoSLinear<FPrecision>::setCrossSection(
 
   // let do some manual memory allocation
   this->_energy = new FPrecision[size];
-  this->_device_data = new CrossSectionGridPoint<FPrecision>[size];
+  this->_xs_data = new CrossSectionGridPoint<FPrecision>[size];
+  this->_size = size;
 
   for (size_t i = 0; i < size; i++) {
     this->_energy[i] = energy_host[i];
     CrossSectionGridPoint<FPrecision> grid(scattering[i], fission[i],
                                            capture[i]);
-    this->_device_data[i] = grid;
+    this->_xs_data[i] = grid;
   }
+}
+
+template <typename FPrecision>
+typename AoSLinear<FPrecision>::ViewType
+AoSLinear<FPrecision>::uploadToDevice() {
+  // check if already uploaded or not
+  if (_uploaded)
+    return _cached_view;
+
+  const size_t n = this->_size;
+  // Allocate + copy both host arrays to device in one shot each.
+  _d_energy = DeviceBuffer<FPrecision>::makeFromHost(this->_energy, n);
+  _d_xs_data = DeviceBuffer<CrossSectionGridPoint<FPrecision>>::makeFromHost(
+      this->_xs_data, n);
+
+  _cached_view._energy = _d_energy.get();
+  _cached_view._grid = _d_xs_data.get();
+  _cached_view._size = n;
+  _uploaded = true;
+  return _cached_view;
 }
 
 template <typename FPrecision>
@@ -74,19 +95,48 @@ void SoALinear<FPrecision>::setCrossSection(
 
   // let do some manual memory allocation
   this->_energy = new FPrecision[size];
-  this->_device_data._sigma_s = new FPrecision[size];
-  this->_device_data._sigma_f = new FPrecision[size];
-  this->_device_data._sigma_c = new FPrecision[size];
-  this->_device_data._sigma_t = new FPrecision[size];
+  this->_xs_data._sigma_s = new FPrecision[size];
+  this->_xs_data._sigma_f = new FPrecision[size];
+  this->_xs_data._sigma_c = new FPrecision[size];
+  this->_xs_data._sigma_t = new FPrecision[size];
+  this->_size = size;
 
   for (size_t i = 0; i < size; i++) {
     this->_energy[i] = energy_host[i];
-    this->_device_data._sigma_s[i] = scattering_host[i];
-    this->_device_data._sigma_f[i] = fission_host[i];
-    this->_device_data._sigma_c[i] = capture_host[i];
-    this->_device_data._sigma_t[i] =
+    this->_xs_data._sigma_s[i] = scattering_host[i];
+    this->_xs_data._sigma_f[i] = fission_host[i];
+    this->_xs_data._sigma_c[i] = capture_host[i];
+    this->_xs_data._sigma_t[i] =
         scattering_host[i] + fission_host[i] + capture_host[i];
   }
+}
+
+template <typename FPrecision>
+typename SoALinear<FPrecision>::ViewType
+SoALinear<FPrecision>::uploadToDevice() {
+  if (_uploaded)
+    return _cached_view;
+
+  const size_t n = this->_size;
+
+  _d_energy = DeviceBuffer<FPrecision>::makeFromHost(this->_energy, n);
+  _d_sigma_s =
+      DeviceBuffer<FPrecision>::makeFromHost(this->_xs_data._sigma_s, n);
+  _d_sigma_f =
+      DeviceBuffer<FPrecision>::makeFromHost(this->_xs_data._sigma_f, n);
+  _d_sigma_c =
+      DeviceBuffer<FPrecision>::makeFromHost(this->_xs_data._sigma_c, n);
+  _d_sigma_t =
+      DeviceBuffer<FPrecision>::makeFromHost(this->_xs_data._sigma_t, n);
+
+  _cached_view._energy = _d_energy.get();
+  _cached_view._data._sigma_s = _d_sigma_s.get();
+  _cached_view._data._sigma_f = _d_sigma_f.get();
+  _cached_view._data._sigma_c = _d_sigma_c.get();
+  _cached_view._data._sigma_t = _d_sigma_t.get();
+  _cached_view._size = n;
+  _uploaded = true;
+  return _cached_view;
 }
 
 // need explicit definition otherwise compiler goes wild
@@ -106,5 +156,10 @@ SoALinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
 template void
 SoALinear<float>::setCrossSection(const OpenMCCrossSectionReader &reader,
                                   NuclideComponent<float> &nuclide);
+
+template AoSLinear<float>::ViewType AoSLinear<float>::uploadToDevice();
+template AoSLinear<double>::ViewType AoSLinear<double>::uploadToDevice();
+template SoALinear<float>::ViewType SoALinear<float>::uploadToDevice();
+template SoALinear<double>::ViewType SoALinear<double>::uploadToDevice();
 
 } // namespace neuxs

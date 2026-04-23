@@ -12,6 +12,7 @@
 
 #include "cross_section_reader.h"
 #include "material.cuh"
+#include "memory.cuh"
 
 namespace neuxs {
 
@@ -85,6 +86,49 @@ template <typename FPrecision> struct HashGrid {
   FPrecision _grid_energy_delta;
 };
 
+// ================ Device-facing "view" structs (POD) =====================
+// ===========================================================================
+/*
+ * A *View* is a lightweight, trivially-copyable POD struct that kernels
+ * operate on. It holds **device** pointers only, so pointer-chasing from a
+ * View lands on more device memory — not garbage.
+ *
+ * Naming convention: the host class X has an associated view type named
+ * XView, exposed via `using ViewType = XView<...>`. Kernels only ever see
+ * Views; they never see host classes. Host classes own the underlying
+ * DeviceBuffer storage — the views are non-owning references.
+ *
+ * Adding a new lookup/interpolation scheme means:
+ *   1) write a new host class deriving from CrossSection<...>
+ *   2) write its View struct here with __device__ lookup methods
+ *   3) expose `using ViewType = NewView<FP>;` and an `uploadToDevice()`
+ * Nothing in Material, Cell, or the kernels needs to change.
+ */
+
+template <typename FPrecision> struct AoSLinearView {
+  FPrecision *_energy;                      // device ptr
+  CrossSectionGridPoint<FPrecision> *_grid; // device ptr
+  size_t _size;
+
+  // Linear (binary) search on the energy grid. Returns the index of the
+  // lower bracket for interpolation.
+  __device__ size_t searchEnergyGrid(FPrecision energy) const;
+
+  // Look up the (interpolated) cross-section grid point at `energy`.
+  __device__ CrossSectionGridPoint<FPrecision>
+  getCrossSection(FPrecision energy) const;
+};
+
+template <typename FPrecision> struct SoALinearView {
+  FPrecision *_energy;                 // device ptr
+  CrossSectionArray<FPrecision> _data; // each pointer inside is device
+  size_t _size;
+
+  __device__ size_t searchEnergyGrid(FPrecision energy) const;
+  __device__ CrossSectionGridPoint<FPrecision>
+  getCrossSection(FPrecision energy) const;
+};
+
 // ===================Cross section Base class ====================
 //              This is only for a single nuclide
 // ================================================================
@@ -111,11 +155,22 @@ template <typename FPrecision> struct HashGrid {
  *              │
  *              │
  *  LogarithmicHashAoS<FPrecision>
+ *
+ * Device story: each concrete class also defines an associated `ViewType`
+ * (a POD) and an `uploadToDevice()` method. The view is what kernels see;
+ * it holds device pointers to the backing storage owned by DeviceBuffers
+ * on the host object. This is how we get a true deep copy onto the GPU
+ * without losing the OOP structure on the host side.
  */
 
 template <typename XSType, typename FPrecision> class CrossSection {
 public:
-  ~CrossSection() { delete[] _energy; }
+  CrossSection() = default;
+  virtual ~CrossSection() { delete[] _energy; }
+
+  // Non-copyable: owns raw arrays. (Move could be added later if needed.)
+  CrossSection(const CrossSection &) = delete;
+  CrossSection &operator=(const CrossSection &) = delete;
 
   /* cross setter from OpenMCCrossSectionReader object
    * this method will use the OpenMCCrossSectionReader object
@@ -127,7 +182,8 @@ public:
   setCrossSection(const OpenMCCrossSectionReader &reader,
                   NuclideComponent<FPrecision> &nuclide) = 0;
 
-  FPrecision *_energy;
+  FPrecision *_energy = nullptr;
+  size_t _size = 0; // length of _energy and of the derived class's xs array
 };
 
 template <typename FPrecision>
@@ -135,10 +191,23 @@ class AoSLinear
     : public CrossSection<CrossSectionGridPoint<FPrecision>, FPrecision> {
 
 public:
-  ~AoSLinear() { delete[] _device_data; }
+  // Associated view type — this is what kernels see.
+  using ViewType = AoSLinearView<FPrecision>;
+
+  ~AoSLinear() override { delete[] _xs_data; }
+
   __host__ virtual void
   setCrossSection(const OpenMCCrossSectionReader &reader,
                   NuclideComponent<FPrecision> &nuclide) override;
+
+  /*
+   * Deep-copy host data onto the device and produce a kernel-facing View.
+   *
+   * The device memory is owned by the DeviceBuffer members below, so the
+   * lifetime of the returned view is tied to *this* object. The call is
+   * idempotent: repeated calls return the same view without re-uploading.
+   */
+  __host__ ViewType uploadToDevice();
 
   /* It needs to be abstract as we will implement
    * different kind of interpolation methods
@@ -155,7 +224,19 @@ public:
   // design and there could be a future change if we decide to  use energy
   // grid's lethargy value for search. Just an idea.
 
-  CrossSectionGridPoint<FPrecision> *_device_data;
+  // Host-side cross-section data (used during construction and for host
+  // verification / unit tests). NOTE: previously named `_device_data`, but
+  // that was misleading — the memory was plain `new[]` on the host. Renamed
+  // to reflect reality. The actual device copy lives in `_d_xs_data` below.
+  CrossSectionGridPoint<FPrecision> *_xs_data = nullptr;
+
+  // Device-resident backing storage (owned here via RAII).
+  DeviceBuffer<FPrecision> _d_energy;
+  DeviceBuffer<CrossSectionGridPoint<FPrecision>> _d_xs_data;
+
+private:
+  bool _uploaded = false;
+  ViewType _cached_view{};
 };
 
 template <typename FPrecision>
@@ -163,15 +244,19 @@ class SoALinear
     : public CrossSection<CrossSectionArray<FPrecision>, FPrecision> {
 
 public:
-  ~SoALinear() {
-    delete[] _device_data._sigma_s;
-    delete[] _device_data._sigma_f;
-    delete[] _device_data._sigma_c;
-    delete[] _device_data._sigma_t;
+  using ViewType = SoALinearView<FPrecision>;
+
+  ~SoALinear() override {
+    delete[] _xs_data._sigma_s;
+    delete[] _xs_data._sigma_f;
+    delete[] _xs_data._sigma_c;
+    delete[] _xs_data._sigma_t;
   };
   __host__ virtual void
   setCrossSection(const OpenMCCrossSectionReader &reader,
                   NuclideComponent<FPrecision> &nuclide) override;
+
+  __host__ ViewType uploadToDevice();
 
   /* It needs to be abstract as we will implement
    * different kind of interpolation methods
@@ -183,12 +268,29 @@ public:
    */
   __device__ size_t searchEnergyGrid(FPrecision *energy);
 
-  CrossSectionArray<FPrecision> _device_data;
+  // Host-side SoA storage (renamed from `_device_data` for clarity — the
+  // underlying pointers are host memory allocated with `new[]`).
+  CrossSectionArray<FPrecision> _xs_data{};
+
+  // Device-resident backing storage.
+  DeviceBuffer<FPrecision> _d_energy;
+  DeviceBuffer<FPrecision> _d_sigma_s;
+  DeviceBuffer<FPrecision> _d_sigma_f;
+  DeviceBuffer<FPrecision> _d_sigma_c;
+  DeviceBuffer<FPrecision> _d_sigma_t;
+
+private:
+  bool _uploaded = false;
+  ViewType _cached_view{};
 };
 
 template <typename FPrecision>
 class LogarithmicHashAoS : public AoSLinear<FPrecision> {
 public:
+  // Inherits ViewType from AoSLinear. If the hashed lookup needs extra
+  // fields (e.g. grid_delta, min energy), define a new view struct here
+  // and shadow `using ViewType = ...;` — nothing upstream changes.
+
   // setter method _hash_info
   __host__ void setLogarithmicHashGrid();
 

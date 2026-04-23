@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace neuxs {
 
@@ -15,6 +16,106 @@ namespace neuxs {
                                cudaGetErrorString(err));                       \
     }                                                                          \
   } while (0)
+
+// ================== RAII wrapper for a device allocation ==================
+// ===========================================================================
+/*
+ * DeviceBuffer<T> owns a cudaMalloc'd block. It is move-only so there is
+ * never any ambiguity over who frees the memory. This is the primitive used
+ * everywhere we would otherwise hand-roll cudaMalloc / cudaFree pairs.
+ *
+ * The raw device pointer is exposed via `get()` and is what we stuff into
+ * the "view" structs that kernels see.
+ *
+ * Typical flow for uploading host data:
+ *
+ *   auto buf = DeviceBuffer<T>::makeFromHost(host_ptr, count);
+ *   kernel<<<...>>>(buf.get(), count);   // buf frees itself at scope exit
+ */
+template <typename T> class DeviceBuffer {
+public:
+  DeviceBuffer() = default;
+
+  explicit DeviceBuffer(size_t count) { allocate(count); }
+
+  ~DeviceBuffer() { reset(); }
+
+  // Move-only: owning device memory must not be accidentally duplicated.
+  DeviceBuffer(const DeviceBuffer &) = delete;
+  DeviceBuffer &operator=(const DeviceBuffer &) = delete;
+
+  DeviceBuffer(DeviceBuffer &&other) noexcept
+      : _ptr(other._ptr), _count(other._count) {
+    other._ptr = nullptr;
+    other._count = 0;
+  }
+
+  DeviceBuffer &operator=(DeviceBuffer &&other) noexcept {
+    if (this != &other) {
+      reset();
+      _ptr = other._ptr;
+      _count = other._count;
+      other._ptr = nullptr;
+      other._count = 0;
+    }
+    return *this;
+  }
+
+  // Allocate `count` elements. If we already owned something, free it first.
+  void allocate(size_t count) {
+    reset();
+    if (count > 0) {
+      CUDA_CHECK(cudaMalloc(&_ptr, count * sizeof(T)));
+      _count = count;
+    }
+  }
+
+  void copyFromHost(const T *host, size_t count) {
+    CUDA_CHECK(
+        cudaMemcpy(_ptr, host, count * sizeof(T), cudaMemcpyHostToDevice));
+  }
+
+  void copyToHost(T *host, size_t count) const {
+    CUDA_CHECK(
+        cudaMemcpy(host, _ptr, count * sizeof(T), cudaMemcpyDeviceToHost));
+  }
+
+  // Upload a single already-built value (e.g. a view struct).
+  static DeviceBuffer<T> makeSingle(const T &value) {
+    DeviceBuffer<T> buf(1);
+    buf.copyFromHost(&value, 1);
+    return buf;
+  }
+
+  // Upload an array of already-built values.
+  static DeviceBuffer<T> makeFromHost(const T *host, size_t count) {
+    DeviceBuffer<T> buf(count);
+    if (count > 0)
+      buf.copyFromHost(host, count);
+    return buf;
+  }
+
+  T *get() { return _ptr; }
+  const T *get() const { return _ptr; }
+  size_t size() const { return _count; }
+  bool empty() const { return _count == 0; }
+
+  void reset() {
+    if (_ptr) {
+      // Intentionally don't CUDA_CHECK here: we don't want a throw out of a
+      // destructor during stack unwinding. We do clear the error though so a
+      // later CUDA call doesn't see a stale sticky error.
+      cudaFree(_ptr);
+      cudaGetLastError();
+      _ptr = nullptr;
+      _count = 0;
+    }
+  }
+
+private:
+  T *_ptr = nullptr;
+  size_t _count = 0;
+};
 
 class MemoryManager {
 public:
