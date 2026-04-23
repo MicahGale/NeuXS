@@ -17,16 +17,20 @@ class OpenMCCrossSectionReader;
 
 template <typename FPrecision> struct NuclideComponent {
 
-  NuclideComponent(char *name, FPrecision atom_density, FPrecision temperature,
-                   bool allow_fission)
+  NuclideComponent(char *name, size_t A, FPrecision atom_density,
+                   FPrecision temperature, bool allow_fission)
       : _name(name), _atom_dens(atom_density), _temperature(temperature),
-        _allows_fission(allow_fission) {}
+        _allows_fission(allow_fission) {
+    FPrecision fraction =
+        static_cast<FPrecision>(A - 1) / static_cast<FPrecision>(A + 1);
+    this->_alpha = fraction * fraction;
+  }
 
   char *_name;
   const FPrecision _atom_dens;
   const FPrecision _temperature;
   const FPrecision _allows_fission;
-  const float _alpha;
+  const FPrecision _alpha;
 };
 
 /*
