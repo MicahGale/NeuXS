@@ -17,15 +17,20 @@ class OpenMCCrossSectionReader;
 
 template <typename FPrecision> struct NuclideComponent {
 
-  NuclideComponent(char *name, FPrecision atom_density, FPrecision temperature,
-                   bool allow_fission)
+  NuclideComponent(char *name, size_t A, FPrecision atom_density,
+                   FPrecision temperature, bool allow_fission)
       : _name(name), _atom_dens(atom_density), _temperature(temperature),
-        _allows_fission(allow_fission) {}
+        _allows_fission(allow_fission) {
+    FPrecision fraction =
+        static_cast<FPrecision>(A - 1) / static_cast<FPrecision>(A + 1);
+    this->_alpha = fraction * fraction;
+  }
 
   char *_name;
   const FPrecision _atom_dens;
   const FPrecision _temperature;
   const FPrecision _allows_fission;
+  const FPrecision _alpha;
 };
 
 /*
@@ -33,6 +38,14 @@ template <typename FPrecision> struct NuclideComponent {
  * XSType what type of cross-section data structure will be used for example
  * AoSLinear<float> FPrecision Numeric value type
  */
+
+template <typename FPrecision> struct Collision {
+  Collision(CollisionType type, NuclideComponent<FPrecision> *nuclide)
+      : _type(type), _nuclide(nuclide) {}
+  CollisionType _type;
+  NuclideComponent<FPrecision> *_nuclide;
+};
+
 template <typename XSType, typename FPrecision> class Material {
 public:
   Material(OpenMCCrossSectionReader &cross_section_reader);
