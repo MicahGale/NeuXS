@@ -1,22 +1,26 @@
-#include "geometry.cuh"
 #include <cuda_runtime.h>
+
+#include "cross_section.cuh"
+#include "cross_section_reader.h"
+#include "geometry.cuh"
+#include "material.cuh"
+#include "memory.cuh"
 
 int main() {
 
-  const float vol = 0.12;
-  neuxs::Cell fuel_cell(vol, 1);
-  neuxs::Cell gas_gap(vol, 2);
-  neuxs::Cell clad_cell(vol, 3);
-  neuxs::Cell mod_cell(vol, 1);
+  neuxs::OpenMCCrossSectionReader reader;
+  neuxs::MemoryManager memory_manager;
+  const char *name = "U235";
+  neuxs::NuclideComponent<double> u235(name, 4.8e22f, 250.0f, true);
 
-  neuxs::Cell gas_neighbors[] = {fuel_cell, clad_cell};
-  neuxs::Cell clad_neighbors[] = {gas_gap, mod_cell};
-  neuxs::Cell mod_neighbors[] = {fuel_cell, clad_cell};
+  neuxs::Material<neuxs::AoSLinear<double>, double> fuel(reader);
+  fuel.addIsotope(u235);
 
-  fuel_cell.setNeighboringCells(&gas_gap, /*number_of_neighbors*/ 1);
-  gas_gap.setNeighboringCells(gas_neighbors, /*number_of_neighbors*/ 2);
-  mod_cell.setNeighboringCells(mod_neighbors, /*number_of_neighbors*/ 1);
-  clad_cell.setNeighboringCells(clad_neighbors, /*number_of_neighbors*/ 1);
+  neuxs::HostVector<neuxs::NuclideComponent<double>> nuclide;
+  neuxs::HostVector<neuxs::AoSLinear<double>> xs;
+  nuclide = fuel._nuclides;
+  // xs = fuel._cross_section_data;
+  std::cout << nuclide[0]._name << '\n';
 
   return 0;
 }

@@ -17,15 +17,21 @@ class OpenMCCrossSectionReader;
 
 template <typename FPrecision> struct NuclideComponent {
 
-  NuclideComponent(char *name, FPrecision atom_density, FPrecision temperature,
-                   bool allow_fission)
+  __host__ __device__ NuclideComponent()
+      : _name(nullptr), _atom_dens(0), _temperature(0), _allows_fission(false) {
+  }
+
+  __host__ __device__ NuclideComponent(const char *name,
+                                       FPrecision atom_density,
+                                       FPrecision temperature,
+                                       bool allow_fission)
       : _name(name), _atom_dens(atom_density), _temperature(temperature),
         _allows_fission(allow_fission) {}
 
-  char *_name;
-  const FPrecision _atom_dens;
-  const FPrecision _temperature;
-  const FPrecision _allows_fission;
+  const char *_name;
+  FPrecision _atom_dens;
+  FPrecision _temperature;
+  bool _allows_fission;
 };
 
 /*
@@ -33,13 +39,15 @@ template <typename FPrecision> struct NuclideComponent {
  * XSType what type of cross-section data structure will be used for example
  * AoSLinear<float> FPrecision Numeric value type
  */
-template <typename XSType, typename FPrecision> class Material {
+template <typename XSClass, typename FPrecision> class Material {
 public:
-  Material(OpenMCCrossSectionReader &cross_section_reader);
+  Material(OpenMCCrossSectionReader &cross_section_reader)
+      : _cross_section_reader(cross_section_reader) {}
 
-  __host__ void addIsotope() = 0;
-
-  __host__ void buildEnergyGrid(std::string isotope_name);
+  __host__ void addIsotope(NuclideComponent<FPrecision> isotope) {
+    _nuclides.push_back(isotope);
+    this->setCrossSection(isotope);
+  }
 
   __device__ void getMacroscopicXS(FPrecision *energy,
                                    FPrecision *cross_section);
@@ -48,17 +56,16 @@ public:
 
   __device__ CollisionType decideCollideType(FPrecision *energy);
 
-private:
+  __host__ void setCrossSection(NuclideComponent<FPrecision> isotope);
+
   const OpenMCCrossSectionReader &_cross_section_reader;
 
   // Device vector of nuclides
   DeviceVector<NuclideComponent<FPrecision>> _nuclides;
 
   // templated data struct. We will define when we declare the material class.
-  DeviceVector<XSType> _cross_section_data;
+  DeviceVector<XSClass> _cross_section_data;
 };
-
-// explicit def
 
 } // namespace neuxs
 
