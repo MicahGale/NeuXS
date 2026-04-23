@@ -26,7 +26,9 @@ template <typename FPrecision>
 using DynamicMap = cuco::dynamic_map<int, FPrecision>;
 
 template <typename T> __device__ T device_log(T val);
-template <> __device__ __forceinline__ float device_log<float>(float val) { return logf(val); }
+template <> __device__ __forceinline__ float device_log<float>(float val) {
+  return logf(val);
+}
 template <> __device__ __forceinline__ double device_log<double>(double val) {
   return log(val);
 }
