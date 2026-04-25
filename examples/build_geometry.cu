@@ -69,11 +69,9 @@ int main() {
          (void *)d_mod_cell);
 
   // ========= Run a tiny probe kernel that follows the pointers ========
-  double *d_sigma_s, *d_sigma_t;
-  unsigned int *d_n;
-  CUDA_CHECK(cudaMalloc(&d_sigma_s, sizeof(double)));
-  CUDA_CHECK(cudaMalloc(&d_sigma_t, sizeof(double)));
-  CUDA_CHECK(cudaMalloc(&d_n, sizeof(unsigned int)));
+  double *d_sigma_s = memory_manager.allocateDevice<double>(1);
+  double *d_sigma_t = memory_manager.allocateDevice<double>(1);
+  unsigned int *d_n = memory_manager.allocateDevice<unsigned int>(1);
 
   probe_cell<<<1, 1>>>(d_fuel_cell, d_sigma_s, d_sigma_t, d_n);
   memory_manager.deviceSynchronize();

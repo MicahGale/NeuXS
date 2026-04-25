@@ -34,6 +34,17 @@ template <> __device__ __forceinline__ double device_log<double>(double val) {
   return log(val);
 }
 
+// device_cbrt follows the same dispatch pattern as device_log; used by the
+// geometry's `particleEscapesTheCell` to compute a characteristic length
+// from a cell volume.
+template <typename T> __device__ T device_cbrt(T val);
+template <> __device__ __forceinline__ float device_cbrt<float>(float val) {
+  return cbrtf(val);
+}
+template <> __device__ __forceinline__ double device_cbrt<double>(double val) {
+  return cbrt(val);
+}
+
 // ============= Main play ground for different data structure ==========
 // =======================================================================
 /*
@@ -82,6 +93,8 @@ template <typename FPrecision> struct HashGrid {
   // macroscopic XS += data
   __device__ void getHashIndex(FPrecision *energy, size_t *hash_index);
 
+  // Scalar hash parameters. `_grid_energy_minimum` is ln(E_min) despite the
+  // name (kept for backwards compat with the original comment above).
   FPrecision _grid_energy_minimum;
   FPrecision _grid_energy_delta;
 };
@@ -110,13 +123,44 @@ template <typename FPrecision> struct AoSLinearView {
   CrossSectionGridPoint<FPrecision> *_grid; // device ptr
   size_t _size;
 
-  // Linear (binary) search on the energy grid. Returns the index of the
-  // lower bracket for interpolation.
-  __device__ size_t searchEnergyGrid(FPrecision energy) const;
+  // Binary search. Returns the index of the lower bracket; caller uses
+  // (idx, idx+1) for interpolation.
+  __device__ __forceinline__ size_t searchEnergyGrid(FPrecision energy) const {
+    if (energy <= _energy[0])
+      return 0;
+    if (energy >= _energy[_size - 1])
+      return _size - 2;
 
-  // Look up the (interpolated) cross-section grid point at `energy`.
-  __device__ CrossSectionGridPoint<FPrecision>
-  getCrossSection(FPrecision energy) const;
+    size_t lo = 0;
+    size_t hi = _size - 1;
+    while (hi - lo > 1) {
+      size_t mid = (lo + hi) >> 1;
+      if (_energy[mid] <= energy)
+        lo = mid;
+      else
+        hi = mid;
+    }
+    return lo;
+  }
+
+  // Lin-lin interpolation of all four reaction channels at `energy`.
+  __device__ __forceinline__ CrossSectionGridPoint<FPrecision>
+  getCrossSection(FPrecision energy) const {
+    size_t idx = searchEnergyGrid(energy);
+    FPrecision E_lo = _energy[idx];
+    FPrecision E_hi = _energy[idx + 1];
+    FPrecision f = (energy - E_lo) / (E_hi - E_lo);
+
+    const auto &p_lo = _grid[idx];
+    const auto &p_hi = _grid[idx + 1];
+
+    CrossSectionGridPoint<FPrecision> r;
+    r._sigma_s = p_lo._sigma_s + f * (p_hi._sigma_s - p_lo._sigma_s);
+    r._sigma_f = p_lo._sigma_f + f * (p_hi._sigma_f - p_lo._sigma_f);
+    r._sigma_c = p_lo._sigma_c + f * (p_hi._sigma_c - p_lo._sigma_c);
+    r._sigma_t = p_lo._sigma_t + f * (p_hi._sigma_t - p_lo._sigma_t);
+    return r;
+  }
 };
 
 template <typename FPrecision> struct SoALinearView {
@@ -124,9 +168,107 @@ template <typename FPrecision> struct SoALinearView {
   CrossSectionArray<FPrecision> _data; // each pointer inside is device
   size_t _size;
 
-  __device__ size_t searchEnergyGrid(FPrecision energy) const;
-  __device__ CrossSectionGridPoint<FPrecision>
-  getCrossSection(FPrecision energy) const;
+  __device__ __forceinline__ size_t searchEnergyGrid(FPrecision energy) const {
+    if (energy <= _energy[0])
+      return 0;
+    if (energy >= _energy[_size - 1])
+      return _size - 2;
+
+    size_t lo = 0;
+    size_t hi = _size - 1;
+    while (hi - lo > 1) {
+      size_t mid = (lo + hi) >> 1;
+      if (_energy[mid] <= energy)
+        lo = mid;
+      else
+        hi = mid;
+    }
+    return lo;
+  }
+
+  __device__ __forceinline__ CrossSectionGridPoint<FPrecision>
+  getCrossSection(FPrecision energy) const {
+    size_t idx = searchEnergyGrid(energy);
+    FPrecision E_lo = _energy[idx];
+    FPrecision E_hi = _energy[idx + 1];
+    FPrecision f = (energy - E_lo) / (E_hi - E_lo);
+
+    CrossSectionGridPoint<FPrecision> r;
+    r._sigma_s = _data._sigma_s[idx] +
+                 f * (_data._sigma_s[idx + 1] - _data._sigma_s[idx]);
+    r._sigma_f = _data._sigma_f[idx] +
+                 f * (_data._sigma_f[idx + 1] - _data._sigma_f[idx]);
+    r._sigma_c = _data._sigma_c[idx] +
+                 f * (_data._sigma_c[idx + 1] - _data._sigma_c[idx]);
+    r._sigma_t = _data._sigma_t[idx] +
+                 f * (_data._sigma_t[idx + 1] - _data._sigma_t[idx]);
+    return r;
+  }
+};
+
+/*
+ * Log-hash accelerated AoS view. A pre-computed hash table narrows the
+ * binary search range before we do the final lookup. Composition rather
+ * than inheritance: embeds an `AoSLinearView` so it can share the
+ * interpolation code.
+ */
+template <typename FPrecision> struct LogarithmicHashAoSView {
+  AoSLinearView<FPrecision> _base; // energy + grid live here
+  // Hash parameters
+  FPrecision _log_energy_min; // ln(E_min)
+  FPrecision _hash_delta;     // n_bins / (ln(E_max) - ln(E_min))
+  size_t *_hash_table;        // device ptr, length = _n_bins + 1
+  size_t _n_bins;
+
+  __device__ __forceinline__ size_t searchEnergyGrid(FPrecision energy) const {
+    // Locate hash bin. Clamp to the valid range.
+    if (energy <= _base._energy[0])
+      return 0;
+    if (energy >= _base._energy[_base._size - 1])
+      return _base._size - 2;
+
+    FPrecision log_e = device_log(energy);
+    long bin = static_cast<long>((log_e - _log_energy_min) * _hash_delta);
+    if (bin < 0)
+      bin = 0;
+    if (bin >= static_cast<long>(_n_bins))
+      bin = static_cast<long>(_n_bins) - 1;
+
+    size_t lo = _hash_table[bin];
+    size_t hi = _hash_table[bin + 1];
+    if (hi >= _base._size)
+      hi = _base._size - 1;
+    if (hi <= lo)
+      return lo;
+
+    // Short binary search within the narrowed window.
+    while (hi - lo > 1) {
+      size_t mid = (lo + hi) >> 1;
+      if (_base._energy[mid] <= energy)
+        lo = mid;
+      else
+        hi = mid;
+    }
+    return lo;
+  }
+
+  __device__ __forceinline__ CrossSectionGridPoint<FPrecision>
+  getCrossSection(FPrecision energy) const {
+    size_t idx = searchEnergyGrid(energy);
+    FPrecision E_lo = _base._energy[idx];
+    FPrecision E_hi = _base._energy[idx + 1];
+    FPrecision f = (energy - E_lo) / (E_hi - E_lo);
+
+    const auto &p_lo = _base._grid[idx];
+    const auto &p_hi = _base._grid[idx + 1];
+
+    CrossSectionGridPoint<FPrecision> r;
+    r._sigma_s = p_lo._sigma_s + f * (p_hi._sigma_s - p_lo._sigma_s);
+    r._sigma_f = p_lo._sigma_f + f * (p_hi._sigma_f - p_lo._sigma_f);
+    r._sigma_c = p_lo._sigma_c + f * (p_hi._sigma_c - p_lo._sigma_c);
+    r._sigma_t = p_lo._sigma_t + f * (p_hi._sigma_t - p_lo._sigma_t);
+    return r;
+  }
 };
 
 // ===================Cross section Base class ====================
@@ -234,7 +376,9 @@ public:
   DeviceBuffer<FPrecision> _d_energy;
   DeviceBuffer<CrossSectionGridPoint<FPrecision>> _d_xs_data;
 
-private:
+protected:
+  // `protected` so LogarithmicHashAoS can reuse the cache after overriding
+  // its own ViewType.
   bool _uploaded = false;
   ViewType _cached_view{};
 };
@@ -287,12 +431,21 @@ private:
 template <typename FPrecision>
 class LogarithmicHashAoS : public AoSLinear<FPrecision> {
 public:
-  // Inherits ViewType from AoSLinear. If the hashed lookup needs extra
-  // fields (e.g. grid_delta, min energy), define a new view struct here
-  // and shadow `using ViewType = ...;` — nothing upstream changes.
+  // Shadow the base ViewType: kernels using a LogarithmicHashAoS will see
+  // the hashed view. Everything upstream (Material, Cell) picks this up
+  // automatically via `XSClass::ViewType`.
+  using ViewType = LogarithmicHashAoSView<FPrecision>;
 
-  // setter method _hash_info
-  __host__ void setLogarithmicHashGrid();
+  ~LogarithmicHashAoS() override { delete[] _hash_table_host; }
+
+  /*
+   * Build the log-hash table from the already-populated energy grid. Call
+   * *after* setCrossSection(). `n_bins` trades off table size vs. lookup
+   * speed; 10k–100k is typical (XSBench default is ~10k).
+   */
+  __host__ void setLogarithmicHashGrid(size_t n_bins = 10000);
+
+  __host__ ViewType uploadToDevice();
 
   // we implement the interpolation method here
   __device__ void getCrossSection(FPrecision *energy,
@@ -302,6 +455,18 @@ public:
 
 protected:
   HashGrid<FPrecision> _hash_info;
+
+  // Host-side hash table (length = _n_bins + 1) and its size.
+  size_t *_hash_table_host = nullptr;
+  size_t _n_bins = 0;
+
+  // Device-side backing storage for the hash table (energy + grid reuse
+  // the base class's DeviceBuffers).
+  DeviceBuffer<size_t> _d_hash_table;
+
+private:
+  bool _hash_uploaded = false;
+  ViewType _cached_hash_view{};
 };
 
 } // namespace neuxs

@@ -13,6 +13,11 @@ enum class CollisionType { SCATTERING, FISSION, CAPTURE };
 
 class OpenMCCrossSectionReader;
 
+// Forward declaration so MaterialView's device methods can reference the
+// return type without pulling in cross_section.cuh (which itself includes
+// material.cuh).
+template <typename FPrecision> struct CrossSectionGridPoint;
+
 template <typename FPrecision> struct NuclideComponent {
 
   __host__ __device__ NuclideComponent()
@@ -50,6 +55,38 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
   NuclideComponent<FPrecision> *_nuclides; // device ptr, length = _num_isotopes
   XSViewType *_xs_views;                   // device ptr, length = _num_isotopes
   unsigned int _num_isotopes;
+
+  // Macroscopic total XS at a given energy:
+  __device__ __forceinline__ FPrecision
+  getMacroscopicSigmaT(FPrecision energy) const {
+    FPrecision sigma_t = static_cast<FPrecision>(0);
+    for (unsigned int i = 0; i < _num_isotopes; ++i) {
+      auto grid = _xs_views[i].getCrossSection(energy);
+      sigma_t += _nuclides[i]._atom_dens * grid._sigma_t;
+    }
+    return sigma_t;
+  }
+
+  // Full macroscopic reaction breakdown — used when deciding which reaction
+  // channel fires after a collision is known to occur.
+  __device__ __forceinline__ CrossSectionGridPoint<FPrecision>
+  getMacroscopicXS(FPrecision energy) const {
+    CrossSectionGridPoint<FPrecision> total;
+    total._sigma_s = static_cast<FPrecision>(0);
+    total._sigma_f = static_cast<FPrecision>(0);
+    total._sigma_c = static_cast<FPrecision>(0);
+    total._sigma_t = static_cast<FPrecision>(0);
+
+    for (unsigned int i = 0; i < _num_isotopes; ++i) {
+      auto grid = _xs_views[i].getCrossSection(energy);
+      FPrecision N = _nuclides[i]._atom_dens;
+      total._sigma_s += N * grid._sigma_s;
+      total._sigma_f += N * grid._sigma_f;
+      total._sigma_c += N * grid._sigma_c;
+      total._sigma_t += N * grid._sigma_t;
+    }
+    return total;
+  }
 };
 
 /*

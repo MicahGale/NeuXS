@@ -4,6 +4,5 @@
 
 namespace neuxs {
 
-bool __device__ particleEscapesTheCell(Particle *particle) { return true; }
 
 } // namespace neuxs
