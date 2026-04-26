@@ -10,6 +10,150 @@
 
 namespace neuxs {
 
+// ======================== AoSLinearView =================================
+template <typename FPrecision>
+__device__ size_t
+AoSLinearView<FPrecision>::searchEnergyGrid(FPrecision energy) const {
+  if (energy <= _energy[0])
+    return 0;
+  if (energy >= _energy[_size - 1])
+    return _size - 2;
+
+  size_t lo = 0;
+  size_t hi = _size - 1;
+  while (hi - lo > 1) {
+    size_t mid = (lo + hi) >> 1;
+    if (_energy[mid] <= energy)
+      lo = mid;
+    else
+      hi = mid;
+  }
+  return lo;
+}
+
+template <typename FPrecision>
+__device__ CrossSectionGridPoint<FPrecision>
+AoSLinearView<FPrecision>::getCrossSection(FPrecision energy) const {
+  size_t idx = searchEnergyGrid(energy);
+  FPrecision E_lo = _energy[idx];
+  FPrecision E_hi = _energy[idx + 1];
+  FPrecision f = (energy - E_lo) / (E_hi - E_lo);
+
+  const auto &p_lo = _grid[idx];
+  const auto &p_hi = _grid[idx + 1];
+
+  CrossSectionGridPoint<FPrecision> r;
+  r._sigma_s = p_lo._sigma_s + f * (p_hi._sigma_s - p_lo._sigma_s);
+  r._sigma_f = p_lo._sigma_f + f * (p_hi._sigma_f - p_lo._sigma_f);
+  r._sigma_c = p_lo._sigma_c + f * (p_hi._sigma_c - p_lo._sigma_c);
+  r._sigma_t = p_lo._sigma_t + f * (p_hi._sigma_t - p_lo._sigma_t);
+  return r;
+}
+
+// ======================== SoALinearView =================================
+template <typename FPrecision>
+__device__ size_t
+SoALinearView<FPrecision>::searchEnergyGrid(FPrecision energy) const {
+  if (energy <= _energy[0])
+    return 0;
+  if (energy >= _energy[_size - 1])
+    return _size - 2;
+
+  size_t lo = 0;
+  size_t hi = _size - 1;
+  while (hi - lo > 1) {
+    size_t mid = (lo + hi) >> 1;
+    if (_energy[mid] <= energy)
+      lo = mid;
+    else
+      hi = mid;
+  }
+  return lo;
+}
+
+template <typename FPrecision>
+__device__ CrossSectionGridPoint<FPrecision>
+SoALinearView<FPrecision>::getCrossSection(FPrecision energy) const {
+  size_t idx = searchEnergyGrid(energy);
+  FPrecision E_lo = _energy[idx];
+  FPrecision E_hi = _energy[idx + 1];
+  FPrecision f = (energy - E_lo) / (E_hi - E_lo);
+
+  CrossSectionGridPoint<FPrecision> r;
+  r._sigma_s =
+      _data._sigma_s[idx] + f * (_data._sigma_s[idx + 1] - _data._sigma_s[idx]);
+  r._sigma_f =
+      _data._sigma_f[idx] + f * (_data._sigma_f[idx + 1] - _data._sigma_f[idx]);
+  r._sigma_c =
+      _data._sigma_c[idx] + f * (_data._sigma_c[idx + 1] - _data._sigma_c[idx]);
+  r._sigma_t =
+      _data._sigma_t[idx] + f * (_data._sigma_t[idx + 1] - _data._sigma_t[idx]);
+  return r;
+}
+
+// ======================== LogarithmicHashAoSView ========================
+template <typename FPrecision>
+__device__ size_t
+LogarithmicHashAoSView<FPrecision>::searchEnergyGrid(FPrecision energy) const {
+  if (energy <= _base._energy[0])
+    return 0;
+  if (energy >= _base._energy[_base._size - 1])
+    return _base._size - 2;
+
+  FPrecision log_e = device_log(energy);
+  long bin = static_cast<long>((log_e - _log_energy_min) * _hash_delta);
+  if (bin < 0)
+    bin = 0;
+  if (bin >= static_cast<long>(_n_bins))
+    bin = static_cast<long>(_n_bins) - 1;
+
+  size_t lo = _hash_table[bin];
+  size_t hi = _hash_table[bin + 1];
+  if (hi >= _base._size)
+    hi = _base._size - 1;
+  if (hi <= lo)
+    return lo;
+
+  while (hi - lo > 1) {
+    size_t mid = (lo + hi) >> 1;
+    if (_base._energy[mid] <= energy)
+      lo = mid;
+    else
+      hi = mid;
+  }
+  return lo;
+}
+
+template <typename FPrecision>
+__device__ CrossSectionGridPoint<FPrecision>
+LogarithmicHashAoSView<FPrecision>::getCrossSection(FPrecision energy) const {
+  size_t idx = searchEnergyGrid(energy);
+  FPrecision E_lo = _base._energy[idx];
+  FPrecision E_hi = _base._energy[idx + 1];
+  FPrecision f = (energy - E_lo) / (E_hi - E_lo);
+
+  const auto &p_lo = _base._grid[idx];
+  const auto &p_hi = _base._grid[idx + 1];
+
+  CrossSectionGridPoint<FPrecision> r;
+  r._sigma_s = p_lo._sigma_s + f * (p_hi._sigma_s - p_lo._sigma_s);
+  r._sigma_f = p_lo._sigma_f + f * (p_hi._sigma_f - p_lo._sigma_f);
+  r._sigma_c = p_lo._sigma_c + f * (p_hi._sigma_c - p_lo._sigma_c);
+  r._sigma_t = p_lo._sigma_t + f * (p_hi._sigma_t - p_lo._sigma_t);
+  return r;
+}
+
+// ======================== CrossSection (base) ===========================
+template <typename XSType, typename FPrecision>
+CrossSection<XSType, FPrecision>::~CrossSection() {
+  delete[] _energy;
+}
+
+// ======================== AoSLinear =====================================
+template <typename FPrecision> AoSLinear<FPrecision>::~AoSLinear() {
+  delete[] _xs_data;
+}
+
 template <typename FPrecision>
 void AoSLinear<FPrecision>::setCrossSection(
     const OpenMCCrossSectionReader &reader,
@@ -38,7 +182,6 @@ void AoSLinear<FPrecision>::setCrossSection(
     fission.assign(size, static_cast<FPrecision>(0));
   }
 
-  // let do some manual memory allocation
   this->_energy = new FPrecision[size];
   this->_xs_data = new CrossSectionGridPoint<FPrecision>[size];
   this->_size = size;
@@ -54,13 +197,11 @@ void AoSLinear<FPrecision>::setCrossSection(
 template <typename FPrecision>
 typename AoSLinear<FPrecision>::ViewType
 AoSLinear<FPrecision>::uploadToDevice() {
-  // Idempotent: if we've already uploaded, hand back the cached view.
   if (this->_uploaded)
     return this->_cached_view;
 
   const size_t n = this->_size;
 
-  // Allocate + copy both host arrays to device in one shot each.
   _d_energy = DeviceBuffer<FPrecision>::makeFromHost(this->_energy, n);
   _d_xs_data = DeviceBuffer<CrossSectionGridPoint<FPrecision>>::makeFromHost(
       this->_xs_data, n);
@@ -70,6 +211,14 @@ AoSLinear<FPrecision>::uploadToDevice() {
   this->_cached_view._size = n;
   this->_uploaded = true;
   return this->_cached_view;
+}
+
+// ======================== SoALinear =====================================
+template <typename FPrecision> SoALinear<FPrecision>::~SoALinear() {
+  delete[] _xs_data._sigma_s;
+  delete[] _xs_data._sigma_f;
+  delete[] _xs_data._sigma_c;
+  delete[] _xs_data._sigma_t;
 }
 
 template <typename FPrecision>
@@ -96,7 +245,6 @@ void SoALinear<FPrecision>::setCrossSection(
   } else
     fission_host.assign(size, static_cast<FPrecision>(0));
 
-  // let do some manual memory allocation
   this->_energy = new FPrecision[size];
   this->_xs_data._sigma_s = new FPrecision[size];
   this->_xs_data._sigma_f = new FPrecision[size];
@@ -142,16 +290,18 @@ SoALinear<FPrecision>::uploadToDevice() {
   return _cached_view;
 }
 
-// ======================= LogarithmicHashAoS =============================
+// ======================== LogarithmicHashAoS ============================
+template <typename FPrecision>
+LogarithmicHashAoS<FPrecision>::~LogarithmicHashAoS() {
+  delete[] _hash_table_host;
+}
+
 /*
  * Hash-table construction: for each of (n_bins + 1) evenly spaced bin
  * boundaries in ln(E) space, record the largest grid index k such that
  * _energy[k] <= bin_boundary. Lookup at runtime then uses
  *     [hash_table[bin], hash_table[bin + 1]]
- * as the already-narrowed window for binary search.
- *
- * We walk a cursor through _energy, so construction is O(size + n_bins)
- * rather than O(size * n_bins).
+ * as the already-narrowed window for binary search. O(size + n_bins).
  */
 template <typename FPrecision>
 void LogarithmicHashAoS<FPrecision>::setLogarithmicHashGrid(size_t n_bins) {
@@ -208,17 +358,14 @@ LogarithmicHashAoS<FPrecision>::uploadToDevice() {
 
   const size_t n = this->_size;
 
-  // Reuse the base class's device buffers for energy + grid.
   this->_d_energy = DeviceBuffer<FPrecision>::makeFromHost(this->_energy, n);
   this->_d_xs_data =
       DeviceBuffer<CrossSectionGridPoint<FPrecision>>::makeFromHost(
           this->_xs_data, n);
 
-  // Upload the hash table.
   _d_hash_table =
       DeviceBuffer<size_t>::makeFromHost(_hash_table_host, _n_bins + 1);
 
-  // Build the composite view.
   _cached_hash_view._base._energy = this->_d_energy.get();
   _cached_hash_view._base._grid = this->_d_xs_data.get();
   _cached_hash_view._base._size = n;
@@ -227,7 +374,6 @@ LogarithmicHashAoS<FPrecision>::uploadToDevice() {
   _cached_hash_view._hash_table = _d_hash_table.get();
   _cached_hash_view._n_bins = _n_bins;
 
-  // Mark both caches populated so either path returns a valid view.
   this->_cached_view = _cached_hash_view._base;
   this->_uploaded = true;
   _hash_uploaded = true;
@@ -236,33 +382,26 @@ LogarithmicHashAoS<FPrecision>::uploadToDevice() {
 }
 
 // need explicit definition otherwise compiler goes wild
+template struct CrossSectionGridPoint<float>;
+template struct CrossSectionGridPoint<double>;
 
-template void
-AoSLinear<float>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                  NuclideComponent<float> &nuclide);
+template struct AoSLinearView<float>;
+template struct AoSLinearView<double>;
+template struct SoALinearView<float>;
+template struct SoALinearView<double>;
+template struct LogarithmicHashAoSView<float>;
+template struct LogarithmicHashAoSView<double>;
 
-template void
-AoSLinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                   NuclideComponent<double> &nuclide);
+template class CrossSection<CrossSectionGridPoint<float>, float>;
+template class CrossSection<CrossSectionGridPoint<double>, double>;
+template class CrossSection<CrossSectionArray<float>, float>;
+template class CrossSection<CrossSectionArray<double>, double>;
 
-template void
-SoALinear<double>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                   NuclideComponent<double> &nuclide);
-
-template void
-SoALinear<float>::setCrossSection(const OpenMCCrossSectionReader &reader,
-                                  NuclideComponent<float> &nuclide);
-
-template AoSLinear<float>::ViewType AoSLinear<float>::uploadToDevice();
-template AoSLinear<double>::ViewType AoSLinear<double>::uploadToDevice();
-template SoALinear<float>::ViewType SoALinear<float>::uploadToDevice();
-template SoALinear<double>::ViewType SoALinear<double>::uploadToDevice();
-
-template void LogarithmicHashAoS<float>::setLogarithmicHashGrid(size_t);
-template void LogarithmicHashAoS<double>::setLogarithmicHashGrid(size_t);
-template LogarithmicHashAoS<float>::ViewType
-LogarithmicHashAoS<float>::uploadToDevice();
-template LogarithmicHashAoS<double>::ViewType
-LogarithmicHashAoS<double>::uploadToDevice();
+template class AoSLinear<float>;
+template class AoSLinear<double>;
+template class SoALinear<float>;
+template class SoALinear<double>;
+template class LogarithmicHashAoS<float>;
+template class LogarithmicHashAoS<double>;
 
 } // namespace neuxs
