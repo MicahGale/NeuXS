@@ -96,21 +96,21 @@ Material<XSClass, FPrecision>::uploadToDevice() {
   if (_uploaded)
     return _d_self.get();
 
-  // 1) Upload each isotope's cross-section data and collect the views.
+  // Upload each isotope's cross-section data and collect the views.
+  // Upload the nuclide metadata and the xs-view array.
+  // Build the view struct on host, then upload a single copy of it so
+  // kernels can take its address.
   std::vector<XSViewType> xs_views_host;
   xs_views_host.reserve(_num_isotopes);
   for (unsigned int i = 0; i < _num_isotopes; ++i) {
     xs_views_host.push_back(_cross_section_data[i].uploadToDevice());
   }
 
-  // 2) Upload the nuclide metadata and the xs-view array.
   _d_nuclides = DeviceBuffer<NuclideComponent<FPrecision>>::makeFromHost(
       _nuclides, _num_isotopes);
   _d_xs_views = DeviceBuffer<XSViewType>::makeFromHost(xs_views_host.data(),
                                                        _num_isotopes);
 
-  // 3) Build the view struct on host, then upload a single copy of it so
-  //    kernels can take its address.
   ViewType v;
   v._nuclides = _d_nuclides.get();
   v._xs_views = _d_xs_views.get();
