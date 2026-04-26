@@ -41,17 +41,16 @@ int main() {
   std::cout << "soa_sigma_c = " << soa_sigma_c << std::endl;
   std::cout << "soa_sigma_t = " << soa_sigma_t << std::endl;
 
-  // Demonstrate the device-side story: upload and verify we get device
-  // pointers back. The DeviceBuffers inside aos_data / soa_data own that
-  // memory and release it at scope exit.
   auto aos_view = aos_data.uploadToDevice();
   auto soa_view = soa_data.uploadToDevice();
 
   printf("=================== Device views ==================\n");
-  printf("aos_view: size=%zu, energy=%p, grid=%p\n", aos_view._size,
-         (void *)aos_view._energy, (void *)aos_view._grid);
-  printf("soa_view: size=%zu, energy=%p, sigma_s=%p\n", soa_view._size,
-         (void *)soa_view._energy, (void *)soa_view._data._sigma_s);
+  std::cout << "aos_view: size= " << aos_view._size
+            << " energy= " << aos_view._energy
+            << " sigma_s= " << aos_view._grid;
+  std::cout << "\nsoa_view: size= " << soa_view._size
+            << " energy= " << soa_view._energy
+            << " sigma_s= " << soa_view._data._sigma_s << std::endl;
 
   return 0;
 }

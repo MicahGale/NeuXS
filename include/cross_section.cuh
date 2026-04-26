@@ -100,9 +100,9 @@ template <typename FPrecision> struct HashGrid {
 // ===========================================================================
 /*
  * Separating the HOST and Device object. Since we are only doing lookups
- * in GPU methods like searchEnergyGrid() and getCrossSection() should be exposed
- * the mirror object in GPU. This should save us some complexity regarding deep copying
- * object from H2D.
+ * in GPU methods like searchEnergyGrid() and getCrossSection() should be
+ * exposed the mirror object in GPU. This should save us some complexity
+ * regarding deep copying object from H2D.
  */
 
 template <typename FPrecision> struct AoSLinearView {
@@ -180,7 +180,6 @@ class AoSLinear
     : public CrossSection<CrossSectionGridPoint<FPrecision>, FPrecision> {
 
 public:
-
   using ViewType = AoSLinearView<FPrecision>;
 
   ~AoSLinear() override;

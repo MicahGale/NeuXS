@@ -19,19 +19,7 @@ namespace neuxs {
 
 // ================== RAII wrapper for a device allocation ==================
 // ===========================================================================
-/*
- * DeviceBuffer<T> owns a cudaMalloc'd block. It is move-only so there is
- * never any ambiguity over who frees the memory. This is the primitive used
- * everywhere we would otherwise hand-roll cudaMalloc / cudaFree pairs.
- *
- * The raw device pointer is exposed via `get()` and is what we stuff into
- * the "view" structs that kernels see.
- *
- * Typical flow for uploading host data:
- *
- *   auto buf = DeviceBuffer<T>::makeFromHost(host_ptr, count);
- *   kernel<<<...>>>(buf.get(), count);   // buf frees itself at scope exit
- */
+// https://forums.developer.nvidia.com/t/raii-style-memory-management/325593
 template <typename T> class DeviceBuffer {
 public:
   DeviceBuffer() = default;
@@ -102,9 +90,6 @@ public:
 
   void reset() {
     if (_ptr) {
-      // Intentionally don't CUDA_CHECK here: we don't want a throw out of a
-      // destructor during stack unwinding. We do clear the error though so a
-      // later CUDA call doesn't see a stale sticky error.
       cudaFree(_ptr);
       cudaGetLastError();
       _ptr = nullptr;

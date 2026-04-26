@@ -13,9 +13,7 @@ enum class CollisionType { SCATTERING, FISSION, CAPTURE };
 
 class OpenMCCrossSectionReader;
 
-// Forward declaration so MaterialView's device methods can reference the
-// return type without pulling in cross_section.cuh (which itself includes
-// material.cuh).
+// Forward declaration
 template <typename FPrecision> struct CrossSectionGridPoint;
 
 template <typename FPrecision> struct NuclideComponent {
@@ -107,10 +105,10 @@ public:
   // Device vector of nuclides
   NuclideComponent<FPrecision> *_nuclides;
 
-  // templated data struct. We will define when we declare the material class.
+  // templated cross-section data struct
   XSClass *_cross_section_data;
 
-  // ---------- device-side backing storage (owned via RAII) ----------
+  // ---------- device-side backing storage ----------
   DeviceBuffer<NuclideComponent<FPrecision>> _d_nuclides;
   DeviceBuffer<XSViewType> _d_xs_views;
   DeviceBuffer<ViewType> _d_self;

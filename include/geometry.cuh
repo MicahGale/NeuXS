@@ -40,9 +40,8 @@ template <typename XSViewType, typename FPrecision> struct CellView {
    * at the particle's energy.
    *
    * Physics:
-   *   Σt(E) = Σᵢ Nᵢ · σt,ᵢ(E)               macroscopic total XS
-   *   d     = −ln(ξ) / Σt(E)                 sampled distance to collision
-   *   L     = ∛V                             characteristic cell length
+   *   d     = −ln(random_number) / Xs_t(E)           sampled distance to
+   * collision L     = ∛V                             characteristic cell length
    *
    * If d > L, the particle's next flight carries it past the cell boundary
    * before interacting → escape. Otherwise, it collides inside the cell.
@@ -58,12 +57,6 @@ template <typename XSViewType, typename FPrecision> struct CellView {
    * Uniformly pick one of this cell's neighbors for the particle's next
    * cell. Returns a pointer into the global CellView array so the caller
    * can keep chasing pointers.
-   *
-   * `all_cells` is the flat, device-resident array of every CellView in
-   * the problem; the neighbor IDs stored on this view are indices into
-   * that array. We need it because we deliberately don't store raw
-   * neighbor pointers (that would require fixing up a pointer cycle
-   * during upload, and would duplicate the neighbor info).
    */
   __device__ CellView *getRandomNeighborCell(Particle<FPrecision> *particle,
                                              CellView *all_cells) const;
@@ -91,10 +84,6 @@ template <typename XSType, typename FPrecision> struct Cell {
    * Deep-copy this cell (and its material subtree, if not already uploaded)
    * onto the device. Returns a device pointer to the kernel-facing CellView.
    * Idempotent.
-   *
-   * Note: the neighbor IDs are uploaded as-is; dereferencing them against a
-   * global array of CellViews is the caller's responsibility (that's how
-   * you break the potential neighbor-of-neighbor pointer cycle cleanly).
    */
   __host__ ViewType *uploadToDevice();
 

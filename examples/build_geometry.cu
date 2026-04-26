@@ -65,9 +65,6 @@ int main() {
   auto *d_fuel_cell = fuel_cell.uploadToDevice();
   auto *d_mod_cell = mod_cell.uploadToDevice();
 
-  printf("Uploaded fuel_cell to %p, mod_cell to %p\n", (void *)d_fuel_cell,
-         (void *)d_mod_cell);
-
   // ========= Run a tiny probe kernel that follows the pointers ========
   double *d_sigma_s = memory_manager.allocateDevice<double>(1);
   double *d_sigma_t = memory_manager.allocateDevice<double>(1);
@@ -78,17 +75,14 @@ int main() {
 
   double h_sigma_s = 0, h_sigma_t = 0;
   unsigned int h_n = 0;
-  CUDA_CHECK(cudaMemcpy(&h_sigma_s, d_sigma_s, sizeof(double),
-                        cudaMemcpyDeviceToHost));
-  CUDA_CHECK(cudaMemcpy(&h_sigma_t, d_sigma_t, sizeof(double),
-                        cudaMemcpyDeviceToHost));
-  CUDA_CHECK(
-      cudaMemcpy(&h_n, d_n, sizeof(unsigned int), cudaMemcpyDeviceToHost));
+  memory_manager.copyToHost<double>(d_sigma_s, &h_sigma_s, 1);
+  memory_manager.copyToHost<double>(d_sigma_t, &h_sigma_t, 1);
+  memory_manager.copyToHost<unsigned int>(d_n, &h_n, 1);
 
   printf("fuel_cell from GPU: num_isotopes=%u, first sigma_s=%g, sigma_t=%g\n",
          h_n, h_sigma_s, h_sigma_t);
 
-  // Host-side sanity check for comparison (same data, read on CPU)
+  // Host-side sanity check for comparison
   printf("fuel_cell on host:  num_isotopes=%u, first sigma_s=%g, sigma_t=%g\n",
          fuel.numIsotopes(), fuel._cross_section_data[0]._xs_data[0]._sigma_s,
          fuel._cross_section_data[0]._xs_data[0]._sigma_t);
