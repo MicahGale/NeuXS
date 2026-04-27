@@ -55,10 +55,10 @@ int main() {
   cell mod_cell(20, 2);
 
   fuel_cell.setMaterial(&fuel);
-  fuel_cell.setNeighboringCells(&mod_cell, 1);
+  fuel_cell.setNeighboringCells({&mod_cell});
 
   mod_cell.setMaterial(&water);
-  mod_cell.setNeighboringCells(&fuel_cell, 1);
+  mod_cell.setNeighboringCells({&fuel_cell});
 
   // ====================== Deep-copy onto the GPU ======================
   // One call per top-level object — materials get uploaded transitively.

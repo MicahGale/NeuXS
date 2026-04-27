@@ -71,15 +71,19 @@ Cell<XSType, FPrecision>::setMaterial(Material<XSType, FPrecision> *material) {
 
 template <typename XSType, typename FPrecision>
 void __host__ Cell<XSType, FPrecision>::setNeighboringCells(
-    Cell<XSType, FPrecision> *cells, unsigned int n_neighbors) {
-  if (n_neighbors < 1)
+    std::initializer_list<Cell<XSType, FPrecision> *> neighbors) {
+  if (neighbors.size() < 1)
     throw std::runtime_error("Must have at least 1 neighbor cell");
 
-  _num_neighbors = n_neighbors;
+  _num_neighbors = neighbors.size();
   _neighbor_cells = new size_t[_num_neighbors];
 
-  for (size_t i = 0; i < _num_neighbors; i++)
-    _neighbor_cells[i] = cells[i]._id;
+  size_t i = 0;
+  for (auto *n : neighbors) {
+    if (!n)
+      throw std::runtime_error("Null neighbor cell");
+    _neighbor_cells[i++] = n->_id;
+  }
 }
 
 template <typename XSType, typename FPrecision>
