@@ -1,4 +1,16 @@
+// neuxs includes
+#include "cross_section_reader.h"
+#include "geometry.cuh"
+#include "material.cuh"
+#include "timer.cuh"
+#include "transport.cuh"
+
 #include "reflective_pincell.cuh"
+
+/* Usage:
+ *   ./this_executable(I need to create another cmake for benchmark)
+ * <aos|soa|log> <double|single>
+ */
 
 int main(int argc, char **argv) {
   if (argc < 3) {
@@ -18,15 +30,4 @@ int main(int argc, char **argv) {
   std::cerr << "Invalid precision: " << precision
             << " (expected double|single)\n";
   return 1;
-}
-
-template <typename XSDataStruct, typename FPrecision>
-int pincell::run_simulation() {
-
-  using Material = neuxs::NuclideComponent<XSDataStruct>;
-  using Cell = neuxs::Cell<XSDataStruct, FPrecision>;
-  neuxs::OpenMCCrossSectionReader reader;
-
-  // TODO: build the model
-  return 0;
 }
