@@ -77,8 +77,8 @@ template <typename XSType, typename FPrecision> struct Cell {
 
   void __host__ setMaterial(Material<XSType, FPrecision> *material);
 
-  void __host__ setNeighboringCells(Cell<XSType, FPrecision> *cells,
-                                    unsigned int n_neighbors);
+  void __host__ setNeighboringCells(
+      std::initializer_list<Cell<XSType, FPrecision> *> neighbors);
 
   /*
    * Deep-copy this cell (and its material subtree, if not already uploaded)
