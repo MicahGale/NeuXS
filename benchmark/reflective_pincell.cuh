@@ -59,7 +59,7 @@
 namespace pincell {
 
 template <typename FPrecision> struct PinCell {
-  const FPrecision temperature = 205.f;
+  const FPrecision temperature = 250.f;
   const FPrecision volume_fuel = 67.92;
   const FPrecision volume_mod = 80.306;
   const FPrecision volume_clad = 8.4;
@@ -115,13 +115,14 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   // man I love lamda functions
   auto make_isotopes = [](const std::vector<const char *> &isotopes_name,
                           const std::vector<FPrecision> &densities,
-                          FPrecision temperature) -> std::vector<Isotope> {
+                          FPrecision temperature,
+                          bool allow_fission) -> std::vector<Isotope> {
     std::vector<Isotope> isotope_vector;
     isotope_vector.reserve(isotopes_name.size());
 
     for (size_t i = 0; i < isotopes_name.size(); i++) {
       isotope_vector.emplace_back(isotopes_name[i], densities[i], temperature,
-                                  true);
+                                  allow_fission);
     }
 
     return isotope_vector;
@@ -134,20 +135,20 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   };
 
   auto fuel_isotopes = make_isotopes(
-      pincell.kFuelIsotopes, pincell.kFuelDensities, pincell.temperature);
+      pincell.kFuelIsotopes, pincell.kFuelDensities, pincell.temperature, true);
   auto cladding_isotopes = make_isotopes(
-      pincell.kCladIsotopes, pincell.kCladDensities, pincell.temperature);
+      pincell.kCladIsotopes, pincell.kCladDensities, pincell.temperature, false);
   auto gas_isotopes = make_isotopes(pincell.kGapIsotopes, pincell.kGapDensities,
-                                    pincell.temperature);
+                                    pincell.temperature, false);
   auto mod_isotopes =
       make_isotopes(pincell.kModeratorIsotopes, pincell.kModeratorDensities,
-                    pincell.temperature);
+                    pincell.temperature, false);
 
   // now that isotopes are done building let's make the materials
   Material fuel_material(reader, fuel_isotopes.size());
-  Material gas_material(reader, gas_isotopes.size());
   Material clad_material(reader, cladding_isotopes.size());
   Material mod_material(reader, mod_isotopes.size());
+  Material gas_material(reader, gas_isotopes.size());
 
   make_material(&fuel_material, fuel_isotopes);
   make_material(&gas_material, gas_isotopes);
@@ -164,10 +165,10 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   cladding_cell.setMaterial(&clad_material);
   moderator_cell.setMaterial(&mod_material);
 
-  fuel_cell.setNeighboringCells(& gas_gap_cell, 1);
-  gas_gap_cell.setNeighboringCells(& fuel_cell, &cladding_cell, 2);
-  cladding_cell.setNeighboringCells({&moderator_cell, & gas_gap_cell}, 2);
-  moderator_cell.setNeighboringCells(&cladding_cell, 1);
+  fuel_cell.setNeighboringCells({& gas_gap_cell});
+  gas_gap_cell.setNeighboringCells({& fuel_cell, &cladding_cell});
+  cladding_cell.setNeighboringCells({&moderator_cell, & gas_gap_cell});
+  moderator_cell.setNeighboringCells({&cladding_cell});
 
 
   return 0;
