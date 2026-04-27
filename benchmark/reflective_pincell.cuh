@@ -154,6 +154,22 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   make_material(&clad_material, cladding_isotopes);
   make_material(&mod_material, mod_isotopes);
 
+  Cell fuel_cell(pincell.volume_fuel, 1 /* cell_id*/);
+  Cell gas_gap_cell (pincell.volume_gas, 2);
+  Cell cladding_cell (pincell.volume_clad, 3);
+  Cell moderator_cell(pincell.volume_mod, 4);
+
+  fuel_cell.setMaterial(&fuel_material);
+  gas_gap_cell.setMaterial(&gas_material);
+  cladding_cell.setMaterial(&clad_material);
+  moderator_cell.setMaterial(&mod_material);
+
+  fuel_cell.setNeighboringCells(& gas_gap_cell, 1);
+  gas_gap_cell.setNeighboringCells(& fuel_cell, &cladding_cell, 2);
+  cladding_cell.setNeighboringCells({&moderator_cell, & gas_gap_cell}, 2);
+  moderator_cell.setNeighboringCells(&cladding_cell, 1);
+
+
   return 0;
 }
 
