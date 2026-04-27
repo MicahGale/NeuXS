@@ -136,8 +136,9 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
 
   auto fuel_isotopes = make_isotopes(
       pincell.kFuelIsotopes, pincell.kFuelDensities, pincell.temperature, true);
-  auto cladding_isotopes = make_isotopes(
-      pincell.kCladIsotopes, pincell.kCladDensities, pincell.temperature, false);
+  auto cladding_isotopes =
+      make_isotopes(pincell.kCladIsotopes, pincell.kCladDensities,
+                    pincell.temperature, false);
   auto gas_isotopes = make_isotopes(pincell.kGapIsotopes, pincell.kGapDensities,
                                     pincell.temperature, false);
   auto mod_isotopes =
@@ -156,8 +157,8 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   make_material(&mod_material, mod_isotopes);
 
   Cell fuel_cell(pincell.volume_fuel, 1 /* cell_id*/);
-  Cell gas_gap_cell (pincell.volume_gas, 2);
-  Cell cladding_cell (pincell.volume_clad, 3);
+  Cell gas_gap_cell(pincell.volume_gas, 2);
+  Cell cladding_cell(pincell.volume_clad, 3);
   Cell moderator_cell(pincell.volume_mod, 4);
 
   fuel_cell.setMaterial(&fuel_material);
@@ -165,11 +166,10 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   cladding_cell.setMaterial(&clad_material);
   moderator_cell.setMaterial(&mod_material);
 
-  fuel_cell.setNeighboringCells({& gas_gap_cell});
-  gas_gap_cell.setNeighboringCells({& fuel_cell, &cladding_cell});
-  cladding_cell.setNeighboringCells({&moderator_cell, & gas_gap_cell});
+  fuel_cell.setNeighboringCells({&gas_gap_cell});
+  gas_gap_cell.setNeighboringCells({&fuel_cell, &cladding_cell});
+  cladding_cell.setNeighboringCells({&moderator_cell, &gas_gap_cell});
   moderator_cell.setNeighboringCells({&cladding_cell});
-
 
   return 0;
 }
