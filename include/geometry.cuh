@@ -41,7 +41,7 @@ template <typename XSViewType, typename FPrecision> struct CellView {
    *
    * Physics:
    *   d     = −ln(random_number) / Xs_t(E)           sampled distance to
-   * collision L     = ∛V                             characteristic cell length
+   * collision L     = qubic_root(V)                  characteristic cell length
    *
    * If d > L, the particle's next flight carries it past the cell boundary
    * before interacting → escape. Otherwise, it collides inside the cell.
