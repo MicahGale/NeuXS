@@ -22,9 +22,8 @@ __device__ bool CellView<XSViewType, FPrecision>::particleEscapesTheCell(
   const FPrecision xi = static_cast<FPrecision>(particle->_rng.nextDouble());
   const FPrecision d_collision = -device_log(xi) / sigma_t;
 
-  const FPrecision char_length = device_cbrt(_volume);
-
-  return d_collision > char_length;
+  const FPrecision characteristic_length = device_cbrt(_volume);
+  return d_collision > characteristic_length;
 }
 
 template <typename XSViewType, typename FPrecision>

@@ -241,8 +241,7 @@ public:
 
   /*
    * Build the log-hash table from the already-populated energy grid. Call
-   * *after* setCrossSection(). `n_bins` trades off table size vs. lookup
-   * speed; 10k–100k is typical (XSBench default is ~10k).
+   * *after* setCrossSection(). `n_bins` trades off table size vs.
    */
   __host__ void setLogarithmicHashGrid(size_t n_bins = 10000);
 
