@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace neuxs {
 
@@ -15,6 +16,91 @@ namespace neuxs {
                                cudaGetErrorString(err));                       \
     }                                                                          \
   } while (0)
+
+// ================== RAII wrapper for a device allocation ==================
+// ===========================================================================
+// https://forums.developer.nvidia.com/t/raii-style-memory-management/325593
+template <typename T> class DeviceBuffer {
+public:
+  DeviceBuffer() = default;
+
+  explicit DeviceBuffer(size_t count) { allocate(count); }
+
+  ~DeviceBuffer() { reset(); }
+
+  // Move-only: owning device memory must not be accidentally duplicated.
+  DeviceBuffer(const DeviceBuffer &) = delete;
+  DeviceBuffer &operator=(const DeviceBuffer &) = delete;
+
+  DeviceBuffer(DeviceBuffer &&other) noexcept
+      : _ptr(other._ptr), _count(other._count) {
+    other._ptr = nullptr;
+    other._count = 0;
+  }
+
+  DeviceBuffer &operator=(DeviceBuffer &&other) noexcept {
+    if (this != &other) {
+      reset();
+      _ptr = other._ptr;
+      _count = other._count;
+      other._ptr = nullptr;
+      other._count = 0;
+    }
+    return *this;
+  }
+
+  // Allocate `count` elements. If we already owned something, free it first.
+  void allocate(size_t count) {
+    reset();
+    if (count > 0) {
+      CUDA_CHECK(cudaMalloc(&_ptr, count * sizeof(T)));
+      _count = count;
+    }
+  }
+
+  void copyFromHost(const T *host, size_t count) {
+    CUDA_CHECK(
+        cudaMemcpy(_ptr, host, count * sizeof(T), cudaMemcpyHostToDevice));
+  }
+
+  void copyToHost(T *host, size_t count) const {
+    CUDA_CHECK(
+        cudaMemcpy(host, _ptr, count * sizeof(T), cudaMemcpyDeviceToHost));
+  }
+
+  // Upload a single already-built value (e.g. a view struct).
+  static DeviceBuffer<T> makeSingle(const T &value) {
+    DeviceBuffer<T> buf(1);
+    buf.copyFromHost(&value, 1);
+    return buf;
+  }
+
+  // Upload an array of already-built values.
+  static DeviceBuffer<T> makeFromHost(const T *host, size_t count) {
+    DeviceBuffer<T> buf(count);
+    if (count > 0)
+      buf.copyFromHost(host, count);
+    return buf;
+  }
+
+  T *get() { return _ptr; }
+  const T *get() const { return _ptr; }
+  size_t size() const { return _count; }
+  bool empty() const { return _count == 0; }
+
+  void reset() {
+    if (_ptr) {
+      cudaFree(_ptr);
+      cudaGetLastError();
+      _ptr = nullptr;
+      _count = 0;
+    }
+  }
+
+private:
+  T *_ptr = nullptr;
+  size_t _count = 0;
+};
 
 class MemoryManager {
 public:

@@ -9,7 +9,8 @@ int main() {
 
   neuxs::OpenMCCrossSectionReader reader;
 
-  char *name = "U235"; // C++ will give warning for a weird reason!
+  const char *name = "U235"; // C++ will give warning for a weird reason!
+  // not anymore lol. made it const char*
   neuxs::NuclideComponent<double> u235(name,
                                        4.8e22f, // atom density (example value)
                                        250.0f,  // temperature in K
@@ -20,14 +21,13 @@ int main() {
   auto soa_data = neuxs::SoALinear<double>();
   soa_data.setCrossSection(reader, u235);
 
-  // copying the first grid and printing it out
-  neuxs::HostVector<neuxs::CrossSectionGridPoint<double>> grids_aos =
-      aos_data._device_data;
+  // host-side array access (renamed from _device_data -> _xs_data for clarity)
+  auto grids_aos = aos_data._xs_data;
 
-  double soa_sigma_s = soa_data._device_data._sigma_s[0];
-  double soa_sigma_f = soa_data._device_data._sigma_f[0];
-  double soa_sigma_c = soa_data._device_data._sigma_c[0];
-  double soa_sigma_t = soa_data._device_data._sigma_t[0];
+  double soa_sigma_s = soa_data._xs_data._sigma_s[0];
+  double soa_sigma_f = soa_data._xs_data._sigma_f[0];
+  double soa_sigma_c = soa_data._xs_data._sigma_c[0];
+  double soa_sigma_t = soa_data._xs_data._sigma_t[0];
 
   printf("=================== AoS ==========================\n");
   std::cout << "aos_sigma_s = " << grids_aos[0]._sigma_s << std::endl;
@@ -40,5 +40,17 @@ int main() {
   std::cout << "soa_sigma_f = " << soa_sigma_f << std::endl;
   std::cout << "soa_sigma_c = " << soa_sigma_c << std::endl;
   std::cout << "soa_sigma_t = " << soa_sigma_t << std::endl;
+
+  auto aos_view = aos_data.uploadToDevice();
+  auto soa_view = soa_data.uploadToDevice();
+
+  printf("=================== Device views ==================\n");
+  std::cout << "aos_view: size= " << aos_view._size
+            << " energy= " << aos_view._energy
+            << " sigma_s= " << aos_view._grid;
+  std::cout << "\nsoa_view: size= " << soa_view._size
+            << " energy= " << soa_view._energy
+            << " sigma_s= " << soa_view._data._sigma_s << std::endl;
+
   return 0;
 }

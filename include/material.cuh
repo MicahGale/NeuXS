@@ -2,30 +2,60 @@
 #define NEUXS_MATERIAL_H
 
 #include <cuda_runtime.h>
+#include <stdexcept>
 #include <string>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
+#include <vector>
+
+#include "memory.cuh"
 
 namespace neuxs {
-
-template <typename T> using DeviceVector = thrust::device_vector<T>;
-template <typename T> using HostVector = thrust::host_vector<T>;
-
 enum class CollisionType { SCATTERING, FISSION, CAPTURE };
 
 class OpenMCCrossSectionReader;
 
+// Forward declaration
+template <typename FPrecision> struct CrossSectionGridPoint;
+
 template <typename FPrecision> struct NuclideComponent {
+  __host__ __device__ NuclideComponent();
 
-  NuclideComponent(char *name, FPrecision atom_density, FPrecision temperature,
-                   bool allow_fission)
-      : _name(name), _atom_dens(atom_density), _temperature(temperature),
-        _allows_fission(allow_fission) {}
+  __host__ __device__ NuclideComponent(const char *name,
+                                       FPrecision atom_density,
+                                       FPrecision temperature,
+                                       bool allow_fission);
 
-  char *_name;
-  const FPrecision _atom_dens;
-  const FPrecision _temperature;
-  const FPrecision _allows_fission;
+  const char *_name;
+  FPrecision _atom_dens;
+  FPrecision _temperature;
+  bool _allows_fission;
+};
+
+// ==================== MaterialView (device-facing POD) =====================
+// ===========================================================================
+/*
+ * Kernel-facing view of a Material. All pointers are device pointers and are
+ * backed by DeviceBuffers owned by the host-side Material.
+ *
+ * Usage from a kernel (assuming XSViewType = AoSLinearView<double>):
+ *
+ *   auto& nuc  = material_view->_nuclides[i];     // NuclideComponent
+ *   auto& xs   = material_view->_xs_views[i];     // the i-th view
+ *   auto  grid = xs.getCrossSection(energy);      // device method
+ *
+ * `_nuclides` and `_xs_views` are parallel arrays (same index → same isotope).
+ */
+template <typename XSViewType, typename FPrecision> struct MaterialView {
+  NuclideComponent<FPrecision> *_nuclides; // device ptr, length = _num_isotopes
+  XSViewType *_xs_views;                   // device ptr, length = _num_isotopes
+  unsigned int _num_isotopes;
+
+  // Macroscopic total XS at a given energy:
+  __device__ FPrecision getMacroscopicSigmaT(FPrecision energy) const;
+
+  // Full macroscopic reaction breakdown — used when deciding which reaction
+  // channel fires after a collision is known to occur.
+  __device__ CrossSectionGridPoint<FPrecision>
+  getMacroscopicXS(FPrecision energy) const;
 };
 
 /*
@@ -33,13 +63,31 @@ template <typename FPrecision> struct NuclideComponent {
  * XSType what type of cross-section data structure will be used for example
  * AoSLinear<float> FPrecision Numeric value type
  */
-template <typename XSType, typename FPrecision> class Material {
+template <typename XSClass, typename FPrecision> class Material {
 public:
-  Material(OpenMCCrossSectionReader &cross_section_reader);
+  // Derive view types from the cross-section class's associated ViewType.
+  // This is how new XS schemes plug in without changing Material at all.
+  using XSViewType = typename XSClass::ViewType;
+  using ViewType = MaterialView<XSViewType, FPrecision>;
 
-  __host__ void addIsotope() = 0;
+  Material(OpenMCCrossSectionReader &cross_section_reader,
+           unsigned int num_isotope);
 
-  __host__ void buildEnergyGrid(std::string isotope_name);
+  ~Material();
+
+  // Non-copyable (owns raw arrays and device buffers).
+  Material(const Material &) = delete;
+  Material &operator=(const Material &) = delete;
+
+  __host__ void addIsotope(NuclideComponent<FPrecision> isotope);
+
+  /*
+   * Deep-copy this material onto the device and return a device pointer to
+   * its kernel-facing MaterialView. Idempotent — subsequent calls return the
+   * same pointer without re-uploading. The device memory is owned by the
+   * DeviceBuffer members and released when *this* object is destroyed.
+   */
+  __host__ ViewType *uploadToDevice();
 
   __device__ void getMacroscopicXS(FPrecision *energy,
                                    FPrecision *cross_section);
@@ -48,17 +96,28 @@ public:
 
   __device__ CollisionType decideCollideType(FPrecision *energy);
 
-private:
+  __host__ void setCrossSection(NuclideComponent<FPrecision> isotope);
+
+  unsigned int numIsotopes() const;
+
   const OpenMCCrossSectionReader &_cross_section_reader;
 
   // Device vector of nuclides
-  DeviceVector<NuclideComponent<FPrecision>> _nuclides;
+  NuclideComponent<FPrecision> *_nuclides;
 
-  // templated data struct. We will define when we declare the material class.
-  DeviceVector<XSType> _cross_section_data;
+  // templated cross-section data struct
+  XSClass *_cross_section_data;
+
+  // ---------- device-side backing storage ----------
+  DeviceBuffer<NuclideComponent<FPrecision>> _d_nuclides;
+  DeviceBuffer<XSViewType> _d_xs_views;
+  DeviceBuffer<ViewType> _d_self;
+
+private:
+  const unsigned int _num_isotopes;
+  unsigned int _temp_isotope_counter = 0;
+  bool _uploaded = false;
 };
-
-// explicit def
 
 } // namespace neuxs
 
