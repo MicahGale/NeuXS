@@ -2,11 +2,12 @@
 
 # Euler doesn't have hdf5 installed in it. So we need to download and compile it
 # And for a weird reason HDF5 lib from the website doesn't compile
-# My work around that is just installing it from the source
+# My work around for this problem is, just installing it from the source
 # Note to Dan or TAs:
 #  Just clone this repo and run this bash script
-#  Even if doesn't work please let us know. We have tested this in Euler and
-#  "This works on my machine. IDK why it isn't working on you machine"
+#  Even if doesn't work please let us know. We have tested this in Euler and it works.
+#
+#      "This works on my machine. IDK why it isn't working on you machine!"
 
 HDF5_lib_dir="${HOME}/hdf5lib"
 NeuXS=${PWD}
