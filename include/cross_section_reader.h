@@ -39,7 +39,7 @@ template <> struct HDF5TypeTraits<double> {
 };
 
 /*  A templated wrapper class for reading HDF5 cross-section data
- * using HDF5 and OpenMC API. Supports float and double types.
+ * using HDF5 API. Supports float and double types.
  */
 
 class OpenMCCrossSectionReader {
