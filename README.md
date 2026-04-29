@@ -26,7 +26,7 @@ It is still under continuous development.
 ### Note for Dan and the TAs
 
 Clone this repo and run the ``setup.sh`` bash script. It should automatically download
-all the dependencies in Euler, cross-section data and set the ENV variables.
+all the dependencies in Euler, cross-section data and set the ENV variables and compile NeuXS.
 
 
 ## Dependencies
