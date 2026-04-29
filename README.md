@@ -1,5 +1,5 @@
 # NeuXS 
-A new way to test evaluating neutron cross-sections on GPUs.
+A new way to test calculating neutron cross-sections on GPUs.
 
 ![CI](https://github.com/MicahGale/NeuXS/actions/workflows/workflow.yml/badge.svg?branch=main)
 ![CUDA](https://img.shields.io/badge/CUDA-12.0+-green)
