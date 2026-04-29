@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 
+template <typename XSType, typename FPrecision> struct Cell;
 namespace neuxs {
 
 enum class EventType { COLLIDE, ESCAPE, DIE };
@@ -39,6 +40,10 @@ template <typename FPrecision> struct Particle {
   bool _alive = true;
   SimpleRNG _rng{1ULL};
 };
+
+template <typename XS, typename FP>
+__device__ void transport_particles(Particle<FP> *particles, size_t n_particles,
+                                    Cell<XS, FP> *cells, size_t n_cells);
 
 } // namespace neuxs
 
