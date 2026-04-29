@@ -1,5 +1,5 @@
 # NeuXS 
-A new way to test evaluating neutron cross-sections on GPUs.
+A new way to test calculating neutron cross-sections on GPUs.
 
 ![CI](https://github.com/MicahGale/NeuXS/actions/workflows/workflow.yml/badge.svg?branch=main)
 ![CUDA](https://img.shields.io/badge/CUDA-12.0+-green)
@@ -7,7 +7,7 @@ A new way to test evaluating neutron cross-sections on GPUs.
 
 ## Overview
 
-NeuXS is a high-performance Nvidia-GPU-accelerated library for evaluating neutron cross-section look up
+NeuXS is a high-performance Nvidia-GPU-accelerated library for performing neutron cross-section look ups/calculations
 for Monte Carlo particle transport. It provides a (!) flexible, type-safe abstractions framework
 for testing neutron cross-section look strategies optimized for GPU computation.
 
