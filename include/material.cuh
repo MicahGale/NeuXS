@@ -19,8 +19,7 @@ template <typename FPrecision> struct CrossSectionGridPoint;
 template <typename FPrecision> struct NuclideComponent {
   __host__ __device__ NuclideComponent();
 
-  __host__ __device__ NuclideComponent(const char *name,
-      size_t A,
+  __host__ __device__ NuclideComponent(const char *name, size_t A,
                                        FPrecision atom_density,
                                        FPrecision temperature,
                                        bool allow_fission);
