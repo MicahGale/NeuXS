@@ -39,6 +39,10 @@ template <typename FPrecision> struct Particle {
   unsigned int _cell_id = 0;
   bool _alive = true;
   SimpleRNG _rng{1ULL};
+
+  bool is_alive() {
+    return this->_alive;
+  }
 };
 
 template <typename XS, typename FP>
