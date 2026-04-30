@@ -23,6 +23,11 @@ It is still under continuous development.
 - **Validated Data**: Comprehensive consistency checking and validation framework
 - **Energy Grid Optimization**: 2D energy grid acceleration for multi-nuclide scenarios
 
+### Note for Dan and the TAs
+
+Clone this repo and run the ``setup.sh`` bash script. It should automatically download
+all the dependencies in Euler, cross-section data and set the ENV variables and compile NeuXS.
+
 
 ## Dependencies
 
