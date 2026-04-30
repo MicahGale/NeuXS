@@ -3,7 +3,7 @@
 #include "geometry.cuh"
 #include "material.cuh"
 #include "transport.cuh"
-
+
 namespace neuxs {
 
 // ============================================================================
@@ -27,10 +27,10 @@ __device__ bool CellView<XSViewType, FPrecision>::particleEscapesTheCell(
 }
 
 template <typename XSViewType, typename FPrecision>
-__device__ CellView<XSViewType, FPrecision> *
-CellView<XSViewType, FPrecision>::getRandomNeighborCell(
-    Particle<FPrecision> *particle, CellView *all_cells) const {
-  if (_num_neighbors == 0 || all_cells == nullptr)
+__device__ unsigned int*
+CellView<XSViewType, FPrecision>::getRandomNeighborCellIdx(
+    Particle<FPrecision> *particle) const {
+  if (_num_neighbors == 0)
     return nullptr;
 
   const FPrecision xi = static_cast<FPrecision>(particle->_rng.nextDouble());
@@ -39,8 +39,7 @@ CellView<XSViewType, FPrecision>::getRandomNeighborCell(
   if (i >= _num_neighbors)
     i = _num_neighbors - 1;
 
-  const size_t nid = _neighbor_cell_ids[i];
-  return &all_cells[nid];
+  return *_neighbor_cell_ids[i];
 }
 
 // ============================================================================

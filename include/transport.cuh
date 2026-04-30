@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 
-template <typename XSType, typename FPrecision> struct Cell;
+template <typename XSType, typename FPrecision> struct CellView;
 namespace neuxs {
 
 enum class EventType { COLLIDE, ESCAPE, DIE };
@@ -27,27 +27,43 @@ struct SimpleRNG {
     return static_cast<double>(hi) * (1.0 / static_cast<double>(1ULL << 53));
   }
 
+  // avoid going to the double modules
   __device__ __forceinline__ float nextFloat() {
-    return static_cast<float>(nextDouble());
+    _state = _state * 6364136223846793005ULL + 1442695040888963407ULL;
+    uint64_t hi = (_state >> 11);
+    if (hi == 0)
+      hi = 1; // exclude exact zero so log() is well-defined downstream
+    return static_cast<float>(hi) * (1.0 / static_cast<float>(1ULL << 53));
+  }
+  __device__ __forceinline__ unsigned int nextInt(unsigned int max) {
+    return static_cast<unsigned int>(this->nextFloat() * static_cast<float>(max));
   }
 };
 
 // Particle definition. Mostly  placeholder
-template <typename FPrecision> struct Particle {
+template <typename FP> struct Particle {
 
-  FPrecision _energy = static_cast<FPrecision>(0);
+  FP _energy = static_cast<FP>(0);
   unsigned int _cell_id = 0;
   bool _alive = true;
   SimpleRNG _rng{1ULL};
+  Particle(FP energy, unsigned int cell_id, unsigned int seed):
+    _energy(energy), _cell_id(cell_id), _alive(true) {
+      _rng = SimpleRNG(seed);
+    };
 
   bool is_alive() {
     return this->_alive;
   }
+  unsigned int get_cell_id() {
+    return this-> _cell_id;
+  }
+
 };
 
 template <typename XS, typename FP>
 __device__ void transport_particles(Particle<FP> *particles, size_t n_particles,
-                                    Cell<XS, FP> *cells, size_t n_cells);
+                                    CellView<XS, FP> *cells, size_t n_cells);
 
 } // namespace neuxs
 

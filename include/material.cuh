@@ -15,6 +15,7 @@ class OpenMCCrossSectionReader;
 
 // Forward declaration
 template <typename FPrecision> struct CrossSectionGridPoint;
+template <typename FPrecision> struct Particle;
 
 template <typename FPrecision> struct NuclideComponent {
   __host__ __device__ NuclideComponent();
@@ -100,9 +101,7 @@ public:
   __device__ void getMacroscopicXS(FPrecision *energy,
                                    FPrecision *cross_section);
 
-  __device__ void decideIfCollide(FPrecision *energy, bool *collides);
-
-  __device__ CollisionType decideCollideType(FPrecision *energy);
+  __device__ Collision<FPrecision> decideCollideType(Particle<FPrecision> part);
 
   __host__ void setCrossSection(NuclideComponent<FPrecision> isotope);
 
