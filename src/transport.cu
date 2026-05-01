@@ -10,7 +10,7 @@ __device__ void transport_particles(Particle<FP> *particles, size_t n_particles,
   if (part_idx >= n_particles)
     return;
   Particle part = particles[part_idx];
-  if (part.get_cell_id() >= n_cells)
+  if (part.getCellID() >= n_cells)
     return;
   CellView<XS, FP> *cell = cells[part.get_cell_id()];
   while (part.is_alive()) {
