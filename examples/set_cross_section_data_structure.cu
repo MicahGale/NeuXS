@@ -11,7 +11,7 @@ int main() {
 
   const char *name = "U235"; // C++ will give warning for a weird reason!
   // not anymore lol. made it const char*
-  neuxs::NuclideComponent<double> u235(name,
+  neuxs::NuclideComponent<double> u235(name, 235,
                                        4.8e22f, // atom density (example value)
                                        250.0f,  // temperature in K
                                        true     // fission allowed

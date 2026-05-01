@@ -17,10 +17,14 @@ __host__ __device__ NuclideComponent<FPrecision>::NuclideComponent()
 
 template <typename FPrecision>
 __host__ __device__ NuclideComponent<FPrecision>::NuclideComponent(
-    const char *name, FPrecision atom_density, FPrecision temperature,
+    const char *name, size_t A, FPrecision atom_density, FPrecision temperature,
     bool allow_fission)
     : _name(name), _atom_dens(atom_density), _temperature(temperature),
-      _allows_fission(allow_fission) {}
+      _allows_fission(allow_fission) {
+  FPrecision fraction =
+      static_cast<FPrecision>(A - 1) / static_cast<FPrecision>(A + 1);
+  this->_alpha = fraction * fraction;
+}
 
 // ============================================================================
 //                              MaterialView
