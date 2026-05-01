@@ -381,6 +381,10 @@ LogarithmicHashAoS<FPrecision>::uploadToDevice() {
   return _cached_hash_view;
 }
 
+// ====================================== SLBW
+// ===========================================
+//
+
 // need explicit definition otherwise compiler goes wild
 template struct CrossSectionGridPoint<float>;
 template struct CrossSectionGridPoint<double>;
