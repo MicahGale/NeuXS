@@ -59,7 +59,8 @@ template <typename XSViewType, typename FPrecision> struct CellView {
    * cell. Returns a pointer into the global CellView array so the caller
    * can keep chasing pointers.
    */
-  __device__ unsigned int* getRandomNeighborCellIdx(Particle<FPrecision> *particle) const;
+  __device__ unsigned int
+  getRandomNeighborCellIdx(Particle<FPrecision> *particle) const;
 };
 
 template <typename XSType, typename FPrecision> struct Cell {
