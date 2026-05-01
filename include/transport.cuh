@@ -55,7 +55,7 @@ template <typename FP> struct Particle {
     _rng = SimpleRNG(seed);
   };
 
-  bool is_alive() { return this->_alive; }
+  bool isAlive() { return this->_alive; }
   unsigned int get_cell_id() { return this->_cell_id; }
 };
 
