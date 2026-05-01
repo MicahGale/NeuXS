@@ -42,27 +42,6 @@ MaterialView<XSViewType, FPrecision>::getMacroscopicSigmaT(
   return sigma_t;
 }
 
-template <typename XSViewType, typename FPrecision>
-__device__ CrossSectionGridPoint<FPrecision>
-MaterialView<XSViewType, FPrecision>::getMacroscopicXS(
-    FPrecision energy) const {
-  CrossSectionGridPoint<FPrecision> total;
-  total._sigma_s = static_cast<FPrecision>(0);
-  total._sigma_f = static_cast<FPrecision>(0);
-  total._sigma_c = static_cast<FPrecision>(0);
-  total._sigma_t = static_cast<FPrecision>(0);
-
-  for (unsigned int i = 0; i < _num_isotopes; ++i) {
-    auto grid = _xs_views[i].getCrossSection(energy);
-    FPrecision N = _nuclides[i]._atom_dens;
-    total._sigma_s += N * grid._sigma_s;
-    total._sigma_f += N * grid._sigma_f;
-    total._sigma_c += N * grid._sigma_c;
-    total._sigma_t += N * grid._sigma_t;
-  }
-  return total;
-}
-
 // ============================================================================
 //                                Material
 // ============================================================================

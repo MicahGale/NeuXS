@@ -22,15 +22,18 @@ __device__ void transport_particles(Particle<FP> *particles, size_t n_particles,
       cell = cells[next_cell_idx];
       // do the collision process
     } else {
-      Collision<FP> collision = cell->_material->decideCollideType(part);
-      switch (collision->_type) {
+      CollisionInfo collision = cell->_material->decideCollideType(part);
+      switch (collision._type) {
       case CollisionType::CAPTURE:
         part->_alive = false;
         break;
-      case CollisionType::SCATTERING:
-        part->_energy *=
-            (1.0 - part->_rng->nextFloat() * (1 - collision->_nuclide->_alpha));
+      case CollisionType::SCATTERING: {
+
+        auto alpha =
+            cells[part._cell_id]->_material[collision._nuclide_id]._alpha;
+        part->_energy *= (1.0 - part->_rng->nextFloat() * (1 - alpha));
         break;
+      }
       case CollisionType::FISSION:
         // Only simulating one fission neutron to avoid infinite branching
         // Also avoids having to grow the particle bank

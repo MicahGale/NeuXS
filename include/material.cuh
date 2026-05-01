@@ -12,6 +12,11 @@
 namespace neuxs {
 enum class CollisionType { SCATTERING, FISSION, CAPTURE };
 
+struct CollisionInfo {
+  CollisionType _type;
+  size_t _nuclide_id;
+};
+
 class OpenMCCrossSectionReader;
 
 // Forward declaration
@@ -55,11 +60,6 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
   // Macroscopic total XS at a given energy:
   __device__ FPrecision getMacroscopicSigmaT(FPrecision energy) const;
 
-  // Full macroscopic reaction breakdown — used when deciding which reaction
-  // channel fires after a collision is known to occur.
-  __device__ CrossSectionGridPoint<FPrecision>
-  getMacroscopicXS(FPrecision energy) const;
-
   /*
    * first we sample the nuclide reaction type using a random_number.
    * total_sigma_t_of_material at (E)
@@ -76,14 +76,15 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
    * xs section
    *
    * */
-  __device__ CollisionType decideCollideType(Particle<FPrecision> part) {
+  __device__ CollisionInfo decideCollideType(Particle<FPrecision> part) {
 
     FPrecision sigma_t_mat = this->getMacroscopicSigmaT(part._energy);
     FPrecision sigma_t_cumulative = 0;
+    CollisionInfo info;
     CrossSectionGridPoint<FPrecision> collision_nuclide_xs_grid;
     auto rand_num = part._rng.nextFloat();
-    for (size_t nuclide_index = 0; nuclide_index < this->_num_isotopes;
-         nuclide_index++) {
+    size_t nuclide_index = 0;
+    for (; nuclide_index < this->_num_isotopes; nuclide_index++) {
 
       collision_nuclide_xs_grid =
           this->_xs_views[nuclide_index].getCrossSection(part._energy);
@@ -92,7 +93,21 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
         break;
     }
 
-    // now we have
+    info._nuclide_id = nuclide_index;
+    // now we have which isotope we can
+    rand_num = part._rng.nextFloat();
+
+    if (rand_num <
+        collision_nuclide_xs_grid._sigma_c / collision_nuclide_xs_grid._sigma_t)
+      info._type = CollisionType::CAPTURE;
+    else if (rand_num < (collision_nuclide_xs_grid._sigma_c +
+                         collision_nuclide_xs_grid._sigma_s) /
+                            collision_nuclide_xs_grid._sigma_t)
+      info._type = CollisionType::SCATTERING;
+    else
+      info._type = CollisionType::FISSION;
+
+    return info;
   }
 };
 
