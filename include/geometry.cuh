@@ -1,6 +1,7 @@
 #ifndef NEUXS_GEOMETRY_H
 #define NEUXS_GEOMETRY_H
 
+#include "material.cuh"
 #include <cuda_runtime.h>
 #include <stdexcept>
 
@@ -58,8 +59,8 @@ template <typename XSViewType, typename FPrecision> struct CellView {
    * cell. Returns a pointer into the global CellView array so the caller
    * can keep chasing pointers.
    */
-  __device__ CellView *getRandomNeighborCell(Particle<FPrecision> *particle,
-                                             CellView *all_cells) const;
+  __device__ unsigned int
+  getRandomNeighborCellIdx(Particle<FPrecision> *particle) const;
 };
 
 template <typename XSType, typename FPrecision> struct Cell {
