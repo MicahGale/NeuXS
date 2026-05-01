@@ -44,11 +44,10 @@
  * not applied here.
  */
 
-#include <array>
 #include <iostream>
 #include <string_view>
+#include <vector>
 
-// neuxs includes
 #include "cross_section.cuh"
 #include "cross_section_reader.h"
 #include "geometry.cuh"
@@ -59,52 +58,32 @@
 namespace pincell {
 
 template <typename FPrecision> struct PinCell {
-  const FPrecision temperature = 250.f;
+  const FPrecision temperature = 250.0;
   const FPrecision volume_fuel = 67.92;
   const FPrecision volume_mod = 80.306;
   const FPrecision volume_clad = 8.4;
   const FPrecision volume_gas = 1.374;
 
-  const std::vector<const char *> kFuelIsotopes = {
-      "U235",
-      "U238",
-      "O16",
-  };
-  const std::vector<FPrecision> kFuelDensities = {
-      4.5e-4,  // U-235
-      2.15e-2, // U-238
-      2.60e-2, // O-16
-  };
-  const std::vector<const char *> kGapIsotopes = {
-      "He4",
-  };
-  const std::vector<FPrecision> kGapDensities = {
-      1.0e-6,
-  };
-  const std::vector<const char *> kCladIsotopes = {"Zr90", "Sn120", "Fe56",
-                                                   "Cr52"};
+  const std::vector<neuxs::NuclideComponent<FPrecision>> fuel_isotopes = {
+      {"U235", 235, 4.5e-4f, temperature, true},
+      {"U238", 238, 2.15e-2f, temperature, true},
+      {"O16", 16, 2.60e-2f, temperature, false}};
 
-  const std::vector<FPrecision> kCladDensities = {4.25e-2, 4.5e-4, 2.0e-4,
-                                                  1.0e-4};
-  const std::vector<const char *> kModeratorIsotopes = {
-      "H1", "O16",
-      /*"B10",
-      "B11" keeping these here for cases where we would want to
-       simulate with poison in the geometry. Since boron only(mostly) absorbs
-       thermal neutron it doesn't really affect the spectrum of the neutron.
-       SO neutron cross-section query will almost be the same as it's slowing
-      down"
-      */
-  };
-  const std::vector<FPrecision> kModeratorDensities = {
-      4.96e-2,
-      2.48e-2,
-  };
+  const std::vector<neuxs::NuclideComponent<FPrecision>> gas_isotopes = {
+      {"C12", 12, 1.0e-6f, temperature, false}};
+
+  const std::vector<neuxs::NuclideComponent<FPrecision>> clad_isotopes = {
+      {"Zr90", 90, 4.25e-2f, temperature, false},
+      {"Sn120", 120, 4.5e-4f, temperature, false},
+      {"Fe56", 56, 2.0e-4f, temperature, false},
+      {"Cr52", 52, 1.0e-4f, temperature, false}};
+
+  const std::vector<neuxs::NuclideComponent<FPrecision>> mod_isotopes = {
+      {"H1", 1, 4.96e-2f, temperature, false},
+      {"O16", 16, 2.48e-2f, temperature, false}};
 };
 
-// helper method to resolve the templated data types
 template <typename XSDataStruct, typename FPrecision> int run_simulation() {
-
   using Isotope = neuxs::NuclideComponent<FPrecision>;
   using Cell = neuxs::Cell<XSDataStruct, FPrecision>;
   using Material = neuxs::Material<XSDataStruct, FPrecision>;
@@ -112,49 +91,21 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   neuxs::OpenMCCrossSectionReader reader;
   pincell::PinCell<FPrecision> pincell;
 
-  // man I love lamda functions
-  auto make_isotopes = [](const std::vector<const char *> &isotopes_name,
-                          const std::vector<FPrecision> &densities,
-                          FPrecision temperature,
-                          bool allow_fission) -> std::vector<Isotope> {
-    std::vector<Isotope> isotope_vector;
-    isotope_vector.reserve(isotopes_name.size());
-
-    for (size_t i = 0; i < isotopes_name.size(); i++) {
-      isotope_vector.emplace_back(isotopes_name[i], densities[i], temperature,
-                                  allow_fission);
-    }
-
-    return isotope_vector;
-  };
-
   auto make_material = [](Material *material,
-                          std::vector<Isotope> &isotope_vector) {
-    for (auto isotope : isotope_vector)
-      material->addIsotope(isotope);
+                          const std::vector<Isotope> &isotopes) {
+    for (const auto &iso : isotopes)
+      material->addIsotope(iso);
   };
 
-  auto fuel_isotopes = make_isotopes(
-      pincell.kFuelIsotopes, pincell.kFuelDensities, pincell.temperature, true);
-  auto cladding_isotopes =
-      make_isotopes(pincell.kCladIsotopes, pincell.kCladDensities,
-                    pincell.temperature, false);
-  auto gas_isotopes = make_isotopes(pincell.kGapIsotopes, pincell.kGapDensities,
-                                    pincell.temperature, false);
-  auto mod_isotopes =
-      make_isotopes(pincell.kModeratorIsotopes, pincell.kModeratorDensities,
-                    pincell.temperature, false);
+  Material fuel_material(reader, pincell.fuel_isotopes.size());
+  Material clad_material(reader, pincell.clad_isotopes.size());
+  Material mod_material(reader, pincell.mod_isotopes.size());
+  Material gas_material(reader, pincell.gas_isotopes.size());
 
-  // now that isotopes are done building let's make the materials
-  Material fuel_material(reader, fuel_isotopes.size());
-  Material clad_material(reader, cladding_isotopes.size());
-  Material mod_material(reader, mod_isotopes.size());
-  Material gas_material(reader, gas_isotopes.size());
-
-  make_material(&fuel_material, fuel_isotopes);
-  make_material(&gas_material, gas_isotopes);
-  make_material(&clad_material, cladding_isotopes);
-  make_material(&mod_material, mod_isotopes);
+  make_material(&fuel_material, pincell.fuel_isotopes);
+  make_material(&gas_material, pincell.gas_isotopes);
+  make_material(&clad_material, pincell.clad_isotopes);
+  make_material(&mod_material, pincell.mod_isotopes);
 
   Cell fuel_cell(pincell.volume_fuel, 1 /* cell_id*/);
   Cell gas_gap_cell(pincell.volume_gas, 2);
@@ -174,11 +125,7 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   return 0;
 }
 
-// helper for running the transport kernel
-template <typename FPrecision>
-int dispatch_xs(std::string_view xs_type)
-
-{
+template <typename FPrecision> int dispatch_xs(std::string_view xs_type) {
   if (xs_type == "aos") {
     std::cout << "Using AoSLinear\n";
     return run_simulation<neuxs::AoSLinear<FPrecision>, FPrecision>();

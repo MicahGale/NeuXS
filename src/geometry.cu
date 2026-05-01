@@ -30,9 +30,6 @@ template <typename XSViewType, typename FPrecision>
 __device__ unsigned int
 CellView<XSViewType, FPrecision>::getRandomNeighborCellIdx(
     Particle<FPrecision> *particle) const {
-  if (_num_neighbors == 0)
-    return static_cast<unsigned int>(1e15);
-
   const FPrecision xi = static_cast<FPrecision>(particle->_rng.nextDouble());
   unsigned int i =
       static_cast<unsigned int>(xi * static_cast<FPrecision>(_num_neighbors));
