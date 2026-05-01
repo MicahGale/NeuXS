@@ -13,7 +13,7 @@ __device__ void transport_particles(Particle<FP> *particles, size_t n_particles,
   if (part.getCellID() >= n_cells)
     return;
   CellView<XS, FP> *cell = cells[part.get_cell_id()];
-  while (part.is_alive()) {
+  while (part.isAlive()) {
     bool escaped = cell->particleEscapesTheCell(*part);
     if (escaped) {
       unsigned int next_neighbor_idx = part->_rng.nextInt(cell->_num_neighbors);
