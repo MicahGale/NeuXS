@@ -65,22 +65,22 @@ template <typename FPrecision> struct PinCell {
   const FPrecision volume_gas = 1.374;
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> fuel_isotopes = {
-      {"U235", 235, 4.5e-4f, temperature, true},
-      {"U238", 238, 2.15e-2f, temperature, true},
-      {"O16", 16, 2.60e-2f, temperature, false}};
+      {"U235", 235, 1.15e-6f, temperature, true},
+      {"U238", 238, 5.45e-5f, temperature, true},
+      {"O16", 16, 9.79e-4f, temperature, false}};
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> gas_isotopes = {
-      {"C12", 12, 1.0e-6f, temperature, false}};
+      {"C12", 12, 5.02e-8f, temperature, false}};
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> clad_isotopes = {
-      {"Zr90", 90, 4.25e-2f, temperature, false},
-      {"Sn120", 120, 4.5e-4f, temperature, false},
-      {"Fe56", 56, 2.0e-4f, temperature, false},
-      {"Cr52", 52, 1.0e-4f, temperature, false}};
+      {"Zr90", 90, 2.84e-4f, temperature, false},
+      {"Sn120", 120, 2.26e-6f, temperature, false},
+      {"Fe56", 56, 2.15e-6f, temperature, false},
+      {"Cr52", 52, 1.16e-6f, temperature, false}};
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> mod_isotopes = {
-      {"H1", 1, 4.96e-2f, temperature, false},
-      {"O16", 16, 2.48e-2f, temperature, false}};
+      {"H1", 1, 2.99e-2f, temperature, false},
+      {"O16", 16, 9.34e-4f, temperature, false}};
 };
 
 template <typename XSDataStruct, typename FPrecision> int run_simulation() {
@@ -121,6 +121,14 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   gas_gap_cell.setNeighboringCells({&fuel_cell, &cladding_cell});
   cladding_cell.setNeighboringCells({&moderator_cell, &gas_gap_cell});
   moderator_cell.setNeighboringCells({&cladding_cell});
+
+  auto *device_fuel_cell = fuel_cell.uploadToDevice();
+  auto *device_gas_gap_fuel_cell = gas_gap_cell.uploadToDevice();
+  auto *device_cladding_cell = cladding_cell.uploadToDevice();
+  auto *device_moderator_cell = moderator_cell.uploadToDevice();
+
+  auto device_cells = {device_fuel_cell, device_gas_gap_fuel_cell,
+                       device_cladding_cell, device_moderator_cell};
 
   return 0;
 }
