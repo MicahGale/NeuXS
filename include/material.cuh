@@ -15,11 +15,12 @@ class OpenMCCrossSectionReader;
 
 // Forward declaration
 template <typename FPrecision> struct CrossSectionGridPoint;
+template <typename FPrecision> struct Particle;
 
 template <typename FPrecision> struct NuclideComponent {
   __host__ __device__ NuclideComponent();
 
-  __host__ __device__ NuclideComponent(const char *name,
+  __host__ __device__ NuclideComponent(const char *name, size_t A,
                                        FPrecision atom_density,
                                        FPrecision temperature,
                                        bool allow_fission);
@@ -28,6 +29,7 @@ template <typename FPrecision> struct NuclideComponent {
   FPrecision _atom_dens;
   FPrecision _temperature;
   bool _allows_fission;
+  FPrecision _alpha;
 };
 
 // ==================== MaterialView (device-facing POD) =====================
@@ -63,6 +65,13 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
  * XSType what type of cross-section data structure will be used for example
  * AoSLinear<float> FPrecision Numeric value type
  */
+template <typename FPrecision> struct Collision {
+  Collision(CollisionType type, NuclideComponent<FPrecision> *nuclide)
+      : _type(type), _nuclide(nuclide) {}
+  CollisionType _type;
+  NuclideComponent<FPrecision> *_nuclide;
+};
+
 template <typename XSClass, typename FPrecision> class Material {
 public:
   // Derive view types from the cross-section class's associated ViewType.
@@ -92,9 +101,7 @@ public:
   __device__ void getMacroscopicXS(FPrecision *energy,
                                    FPrecision *cross_section);
 
-  __device__ void decideIfCollide(FPrecision *energy, bool *collides);
-
-  __device__ CollisionType decideCollideType(FPrecision *energy);
+  __device__ Collision<FPrecision> decideCollideType(Particle<FPrecision> part);
 
   __host__ void setCrossSection(NuclideComponent<FPrecision> isotope);
 

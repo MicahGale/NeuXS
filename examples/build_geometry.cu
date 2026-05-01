@@ -38,10 +38,10 @@ int main() {
   const char *Hydrogen_name = "H1";
   const char *Oxygen_name = "O16";
 
-  isotope u235(U235_name, 4.8e22, 250.0, true);
-  isotope u236(U236_name, 4.8e22, 250.0, true);
-  isotope hydrogen(Hydrogen_name, 2, 250., false);
-  isotope oxygen(Oxygen_name, 2.0, 250, false);
+  isotope u235(U235_name, 235, 4.8e22, 250.0, true);
+  isotope u236(U236_name, 236, 4.8e22, 250.0, true);
+  isotope hydrogen(Hydrogen_name, 1, 2, 250., false);
+  isotope oxygen(Oxygen_name, 16, 2.0, 250, false);
 
   material fuel(reader, 2);
   fuel.addIsotope(u235);
