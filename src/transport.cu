@@ -34,7 +34,7 @@ __device__ void transport_particles(Particle<FP> *particles, size_t n_particles,
       case CollisionType::FISSION:
         // Only simulating one fission neutron to avoid infinite branching
         // Also avoids having to grow the particle bank
-        part = Particle(FISSION_ENERGY, part.get_cell_id(), part._rng._state);
+        part = Particle(FISSION_ENERGY, part.getCellID(), part._rng._state);
         particles[part_idx] = part;
       }
     }
