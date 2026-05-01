@@ -56,7 +56,7 @@ template <typename FP> struct Particle {
   };
 
   bool isAlive() { return this->_alive; }
-  unsigned int get_cell_id() { return this->_cell_id; }
+  unsigned int getCellID() { return this->_cell_id; }
 };
 
 template <typename XS, typename FP>
