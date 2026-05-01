@@ -5,6 +5,8 @@
 #include <cuda_runtime.h>
 
 template <typename XSType, typename FPrecision> struct CellView;
+
+const double FISSION_ENERGY = 2.2e6; // [eV] just an approximation.
 namespace neuxs {
 
 enum class EventType { COLLIDE, ESCAPE, DIE };
@@ -36,7 +38,8 @@ struct SimpleRNG {
     return static_cast<float>(hi) * (1.0 / static_cast<float>(1ULL << 53));
   }
   __device__ __forceinline__ unsigned int nextInt(unsigned int max) {
-    return static_cast<unsigned int>(this->nextFloat() * static_cast<float>(max));
+    return static_cast<unsigned int>(this->nextFloat() *
+                                     static_cast<float>(max));
   }
 };
 
@@ -47,18 +50,13 @@ template <typename FP> struct Particle {
   unsigned int _cell_id = 0;
   bool _alive = true;
   SimpleRNG _rng{1ULL};
-  Particle(FP energy, unsigned int cell_id, unsigned int seed):
-    _energy(energy), _cell_id(cell_id), _alive(true) {
-      _rng = SimpleRNG(seed);
-    };
+  Particle(FP energy, unsigned int cell_id, unsigned int seed)
+      : _energy(energy), _cell_id(cell_id), _alive(true) {
+    _rng = SimpleRNG(seed);
+  };
 
-  bool is_alive() {
-    return this->_alive;
-  }
-  unsigned int get_cell_id() {
-    return this-> _cell_id;
-  }
-
+  bool is_alive() { return this->_alive; }
+  unsigned int get_cell_id() { return this->_cell_id; }
 };
 
 template <typename XS, typename FP>
