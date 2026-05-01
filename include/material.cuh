@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "memory.cuh"
+#include "transport.cuh"
 
 namespace neuxs {
 enum class CollisionType { SCATTERING, FISSION, CAPTURE };
@@ -58,6 +59,41 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
   // channel fires after a collision is known to occur.
   __device__ CrossSectionGridPoint<FPrecision>
   getMacroscopicXS(FPrecision energy) const;
+
+  /*
+   * first we sample the nuclide reaction type using a random_number.
+   * total_sigma_t_of_material at (E)
+   * auto sigma_t = 0;
+   * for (size_t nuclide_index =0 ; nuclide_index < this->_num_isotopes;
+   * nuclide_index++ ){ sigma_t +=
+   * _xs_view[nuclide_index]->getTotalSigmaT(particle._energy); if
+   * (random_number > sigma_t/total_sigma_t_of_material){ break; may not be
+   * the best idea as we are gonna get thread divergence but then again my
+   * loop isn't that big. So maybe it shouldn't matter
+   *   }
+   * }
+   * then we sample the reaction type for which can just do it by microscopic
+   * xs section
+   *
+   * */
+  __device__ CollisionType decideCollideType(Particle<FPrecision> part) {
+
+    FPrecision sigma_t_mat = this->getMacroscopicSigmaT(part._energy);
+    FPrecision sigma_t_cumulative = 0;
+    CrossSectionGridPoint<FPrecision> collision_nuclide_xs_grid;
+    auto rand_num = part._rng.nextFloat();
+    for (size_t nuclide_index = 0; nuclide_index < this->_num_isotopes;
+         nuclide_index++) {
+
+      collision_nuclide_xs_grid =
+          this->_xs_views[nuclide_index].getCrossSection(part._energy);
+      sigma_t_cumulative += collision_nuclide_xs_grid._sigma_t;
+      if (rand_num < sigma_t_cumulative / sigma_t_mat)
+        break;
+    }
+
+    // now we have
+  }
 };
 
 /*
@@ -97,11 +133,6 @@ public:
    * DeviceBuffer members and released when *this* object is destroyed.
    */
   __host__ ViewType *uploadToDevice();
-
-  __device__ void getMacroscopicXS(FPrecision *energy,
-                                   FPrecision *cross_section);
-
-  __device__ Collision<FPrecision> decideCollideType(Particle<FPrecision> part);
 
   __host__ void setCrossSection(NuclideComponent<FPrecision> isotope);
 
