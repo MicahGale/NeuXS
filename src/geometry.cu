@@ -7,41 +7,6 @@
 namespace neuxs {
 
 // ============================================================================
-// CellView
-// ============================================================================
-//
-// template <typename XSViewType, typename FPrecision>
-//__device__ bool CellView<XSViewType, FPrecision>::particleEscapesTheCell(
-//    Particle<FPrecision> *particle) const {
-//  const FPrecision sigma_t =
-//  _material->getMacroscopicSigmaT(particle->_energy);
-//
-//  // Pathological case: no material interaction at this energy → escape.
-//  if (sigma_t <= static_cast<FPrecision>(0))
-//    return true;
-//
-//  const FPrecision xi = static_cast<FPrecision>(particle->_rng.nextDouble());
-//  const FPrecision d_collision = -device_log(xi) / sigma_t;
-//
-//  const FPrecision characteristic_length = device_cbrt(_volume);
-//  return d_collision > characteristic_length;
-//}
-
-// template <typename XSViewType, typename FPrecision>
-//__device__ unsigned int
-// CellView<XSViewType, FPrecision>::getRandomNeighborCellIdx(
-//     Particle<FPrecision> *particle) const {
-//   const FPrecision xi = static_cast<FPrecision>(particle->_rng.nextDouble());
-//   unsigned int i =
-//       static_cast<unsigned int>(xi *
-//       static_cast<FPrecision>(_num_neighbors));
-//   if (i >= _num_neighbors)
-//     i = _num_neighbors - 1;
-//
-//   return _neighbor_cell_ids[i];
-// }
-
-// ============================================================================
 // Cell
 // ============================================================================
 

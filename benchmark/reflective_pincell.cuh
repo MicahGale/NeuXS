@@ -45,6 +45,7 @@ int run_simulation() {
   using Cell = neuxs::Cell<XSDataStruct, FPrecision>;
   using Material = neuxs::Material<XSDataStruct, FPrecision>;
   using Particle = neuxs::Particle<FPrecision>;
+  using CellViewType = neuxs::CellView<XSDataViewType, FPrecision>;
 
   neuxs::MemoryManager memory_manager;
 
@@ -87,8 +88,31 @@ int run_simulation() {
   auto device_cladding_cell = cladding_cell.uploadToDevice();
   auto device_moderator_cell = moderator_cell.uploadToDevice();
 
-  Particle *host_particles =
-      neuxs::get_mono_energetic_particles<FPrecision>(512, fuel_cell._id);
+  const size_t number_of_particles = 512;
+  Particle *host_particles = neuxs::get_mono_energetic_particles<FPrecision>(
+      number_of_particles, fuel_cell._id);
+
+  Particle *device_particles =
+      memory_manager.allocateDevice<Particle>(number_of_particles);
+  memory_manager.copyToDevice(host_particles, device_particles,
+                              number_of_particles);
+
+  const size_t n_cells = 4;
+  int threads = 256;
+  int blocks = (number_of_particles + threads - 1) / threads;
+  CellViewType *h_cell_ptrs[n_cells] = {
+      device_fuel_cell,         // id = 0
+      device_gas_gap_fuel_cell, // id = 1
+      device_cladding_cell,     // id = 2
+      device_moderator_cell     // id = 3
+  };
+
+  CellViewType **d_cell_ptrs =
+      memory_manager.allocateDevice<CellViewType *>(n_cells);
+  memory_manager.copyToDevice(h_cell_ptrs, d_cell_ptrs, n_cells);
+  neuxs::transport_particles<<<blocks, threads>>>(
+      device_particles, number_of_particles, d_cell_ptrs, n_cells);
+
   return 0;
 
   // I will worry about the cleanup later

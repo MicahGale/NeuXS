@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "memory.cuh"
-#include "transport.cuh"
 
 namespace neuxs {
 enum class CollisionType { SCATTERING, FISSION, CAPTURE };
