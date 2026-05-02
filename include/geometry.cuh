@@ -56,7 +56,7 @@ template <typename XSViewType, typename FPrecision> struct CellView {
     const FPrecision sigma_t =
         _material->getMacroscopicSigmaT(particle->_energy);
 
-    // Pathological case: no material interaction at this energy → escape.
+    //    printf("total cross_section %f\n", sigma_t);
     if (sigma_t <= static_cast<FPrecision>(0))
       return true;
 

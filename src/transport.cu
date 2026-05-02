@@ -4,9 +4,9 @@
 namespace neuxs {
 
 template <typename XSViewType, typename FP>
-__global__ void transport_particles(Particle<FP> *particles, size_t n_particles,
-                                    CellView<XSViewType, FP> **cells,
-                                    size_t n_cells) {
+__global__ void
+transport_particles(Particle<FP> **particles, size_t n_particles,
+                    CellView<XSViewType, FP> **cells, size_t n_cells) {
   size_t part_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_idx >= n_particles)
     return;
@@ -40,5 +40,27 @@ __global__ void transport_particles(Particle<FP> *particles, size_t n_particles,
     }
   }
 }
+
+template <typename FP>
+Particle<FP> *get_mono_energetic_particles(size_t number_of_particles,
+                                           size_t cell_id) {
+  if (number_of_particles == 0) {
+    return nullptr;
+  }
+
+  Particle<FP> *particles = new Particle<FP>[number_of_particles];
+
+  for (size_t i = 0; i < number_of_particles; ++i) {
+    particles[i] = Particle<FP>(static_cast<FP>(FISSION_ENERGY),
+                                static_cast<unsigned int>(cell_id),
+                                static_cast<unsigned int>(i + 1));
+  }
+
+  return particles;
+}
+
+// don't make the compiler crazy
+template struct Particle<float>;
+template struct Particle<double>;
 
 } // namespace neuxs

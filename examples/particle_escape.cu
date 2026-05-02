@@ -18,12 +18,14 @@ dummy_transport(neuxs::CellView<neuxs::AoSLinearView<float>, float> *cell,
                 size_t *next_cell_id) {
   if (particle->isAlive()) {
     *escape = cell->particleEscapesTheCell(particle);
-  } else {
-    *escape = false;
+    printf("Particle escaped %d \n", *escape);
   }
 
   if (*escape == true) {
+    printf("getting random cells\n");
+    printf("particle old cell was %d\n", particle->getCellID());
     *next_cell_id = cell->getRandomNeighborCellIdx(particle);
+    printf("next random cell id = %d\n", *next_cell_id);
   }
 }
 
@@ -34,7 +36,7 @@ struct PinCell {
   // in ideal case this isn't the volume.
   // I am making it small so that particle has a higher chance of escaping
   // which I wanted to demonstrate in this problem
-  const float volume_fuel = 0.00092;
+  const float volume_fuel = 0.92;
   const float volume_mod = 8.4;
 
   const std::vector<neuxs::NuclideComponent<float>> fuel_isotopes = {
@@ -80,24 +82,26 @@ int run_simulation() {
   auto device_fuel_cell = fuel_cell.uploadToDevice();
   auto device_moderator_cell = moderator_cell.uploadToDevice();
 
-  Particle particle(0, 10e6, true);
-  size_t host_cell_id = 0;
+  Particle particle(1e6, 0);
+  size_t host_cell_id = particle.getCellID();
+
   auto *device_escaped_cell_id = memory_manager.allocateDevice<size_t>(1);
   auto *device_particle = memory_manager.allocateDevice<Particle>(1);
   memory_manager.copyToDevice(&particle, device_particle, 1);
   memory_manager.copyToDevice(&host_cell_id, device_escaped_cell_id, 1);
 
   auto *escape = memory_manager.allocateDevice<bool>(1);
-
+  bool result = false;
+  memory_manager.copyToDevice(&result, escape, 1);
   dummy_transport<<<1, 1>>>(device_fuel_cell, device_particle, escape,
                             device_escaped_cell_id);
-  bool result;
   memory_manager.copyToHost(&result, escape, 1);
 
   std::cout << "particle was in cell " << host_cell_id << "\n";
   memory_manager.copyToHost(device_escaped_cell_id, &host_cell_id, 1);
-  result ? std::cout << "particle escaped to cell " << host_cell_id << std::endl
-         : std::cout << "particle didn't escape the cell \n";
+  host_cell_id != particle.getCellID()
+      ? std::cout << "particle escaped to cell " << host_cell_id << std::endl
+      : std::cout << "particle didn't escape the cell \n";
 
   return 0;
 }

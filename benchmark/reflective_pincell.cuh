@@ -44,6 +44,7 @@ int run_simulation() {
   using Isotope = neuxs::NuclideComponent<FPrecision>;
   using Cell = neuxs::Cell<XSDataStruct, FPrecision>;
   using Material = neuxs::Material<XSDataStruct, FPrecision>;
+  using Particle = neuxs::Particle<FPrecision>;
 
   neuxs::MemoryManager memory_manager;
 
@@ -86,7 +87,11 @@ int run_simulation() {
   auto device_cladding_cell = cladding_cell.uploadToDevice();
   auto device_moderator_cell = moderator_cell.uploadToDevice();
 
+  // Particle *host_particles =
+  //  neuxs::get_mono_energetic_particles<FPrecision>(512, fuel_cell._id);
   return 0;
+
+  // I will worry about the cleanup later
 }
 
 template <typename FPrecision> int dispatch_xs(std::string_view xs_type) {
