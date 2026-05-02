@@ -1,69 +1,15 @@
 #ifndef NEUXS_REFLECTIVE_PINCELL_CUH
 #define NEUXS_REFLECTIVE_PINCELL_CUH
 
-/**
- * pin_cell_main.cu — driver for a single-pincell neutron transport problem.
- *
- * This pin-cell model is used for cross-section lookup and neutron transport
- * in a thermal reactor. Geometry and dimensions are representative of a
- * typical UO2 fuel rod with Zircaloy cladding and light water moderator.
- *
- * ---------------------------
- * Fuel region (UO2)
- * ---------------------------
- * radius_fuel      = 0.93/2 cm
- * height_fuel      = 100.0 cm (1 m)
- * volume_fuel      = 67.92 cm^3
- *
- * ---------------------------
- * Gap region (He)
- * ---------------------------
- * thickness_gap    ≈ 0.01 cm
- * radius_gap_outer = 0.94 cm
- * volume_gap       ≈ 1.374 cm^3
- *
- * ---------------------------
- * Cladding (Zircaloy)
- * ---------------------------
- * radius_clad_inner = 0.94/2 cm
- * radius_clad_outer = 0.997/2 cm
- * thickness_clad    ≈ 0.057/2 cm
- * volume_clad       ≈ 8.4 cm^3
- *
- * ---------------------------
- * Lattice / Moderator (H2O)
- * ---------------------------
- * lattice_pitch     = 1.26 cm (square pitch)
- * cell_height       = 100.0 cm
- * cell_volume       = 158.8 cm^3
- * mod_volume        = 80.306
- *
- * Number densities are in [atoms/(barn·cm)]. (1 barn = 1e-24 cm^2.)
- * Assumes UO2 at 4.0 wt% U-235, 10.4 g/cm^3; Zircaloy-4 at 6.55 g/cm^3;
- * H2O at 0.743 g/cm^3 (hot operating, ~580 K). Doppler / density feedback
- * not applied here.
- */
-
-#include <iostream>
-#include <string_view>
-#include <vector>
-
 #include "cross_section.cuh"
 #include "cross_section_reader.h"
 #include "geometry.cuh"
 #include "material.cuh"
 #include "timer.cuh"
 #include "transport.cuh"
-
-template <typename ViewType, typename FP>
-__global__ void dummy_transport(neuxs::CellView<ViewType, FP> *cell,
-                                neuxs::Particle<FP> *particle, bool *escape) {
-  if (particle->isAlive()) {
-    *escape = cell->particleEscapesTheCell(particle);
-  } else {
-    *escape = false;
-  }
-}
+#include <iostream>
+#include <string_view>
+#include <vector>
 
 namespace pincell {
 
@@ -139,20 +85,6 @@ int run_simulation() {
   auto device_gas_gap_fuel_cell = gas_gap_cell.uploadToDevice();
   auto device_cladding_cell = cladding_cell.uploadToDevice();
   auto device_moderator_cell = moderator_cell.uploadToDevice();
-
-  neuxs::Particle<FPrecision> particle(0, 1e6, true);
-
-  auto *device_particle =
-      memory_manager.allocateDevice<neuxs::Particle<FPrecision>>(1);
-
-  memory_manager.copyToDevice(&particle, device_particle, 1);
-
-  auto *escape = memory_manager.allocateDevice<bool>(1);
-
-  dummy_transport<<<1, 1>>>(device_fuel_cell, device_particle, escape);
-  bool r;
-  memory_manager.copyToHost(&r, escape, 1);
-  std::cout<<r;
 
   return 0;
 }

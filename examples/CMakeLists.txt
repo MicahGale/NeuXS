@@ -6,3 +6,6 @@ target_link_libraries(cross_section PRIVATE neuxslib)
 
 add_executable(setup set_cross_section_data_structure.cu)
 target_link_libraries(setup PRIVATE neuxslib)
+
+add_executable(particle_escape particle_escape.cu)
+target_link_libraries(particle_escape PRIVATE neuxslib)
