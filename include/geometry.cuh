@@ -49,10 +49,23 @@ template <typename XSViewType, typename FPrecision> struct CellView {
    *
    * This is the distance-to-collision test from standard stochastic
    * tracking, adapted to a volume-only cell description (no explicit
-   * surfaces yet). The same Σt(E) computed here is what the collision
-   * handler downstream will reuse.
+   * surfaces yet).
    */
-  __device__ bool particleEscapesTheCell(Particle<FPrecision> *particle) const;
+  __device__ bool particleEscapesTheCell(Particle<FPrecision> *particle) const {
+
+    const FPrecision sigma_t =
+        _material->getMacroscopicSigmaT(particle->_energy);
+
+    // Pathological case: no material interaction at this energy → escape.
+    if (sigma_t <= static_cast<FPrecision>(0))
+      return true;
+
+    const FPrecision xi = static_cast<FPrecision>(particle->_rng.nextDouble());
+    const FPrecision d_collision = -device_log(xi) / sigma_t;
+
+    const FPrecision characteristic_length = device_cbrt(_volume);
+    return d_collision > characteristic_length;
+  };
 
   /*
    * Uniformly pick one of this cell's neighbors for the particle's next
@@ -60,7 +73,15 @@ template <typename XSViewType, typename FPrecision> struct CellView {
    * can keep chasing pointers.
    */
   __device__ unsigned int
-  getRandomNeighborCellIdx(Particle<FPrecision> *particle) const;
+  getRandomNeighborCellIdx(Particle<FPrecision> *particle) const {
+    const FPrecision xi = static_cast<FPrecision>(particle->_rng.nextDouble());
+    unsigned int i =
+        static_cast<unsigned int>(xi * static_cast<FPrecision>(_num_neighbors));
+    if (i >= _num_neighbors)
+      i = _num_neighbors - 1;
+
+    return _neighbor_cell_ids[i];
+  };
 };
 
 template <typename XSType, typename FPrecision> struct Cell {

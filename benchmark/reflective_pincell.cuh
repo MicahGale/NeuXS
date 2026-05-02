@@ -55,6 +55,16 @@
 #include "timer.cuh"
 #include "transport.cuh"
 
+template <typename ViewType, typename FP>
+__global__ void dummy_transport(neuxs::CellView<ViewType, FP> *cell,
+                                neuxs::Particle<FP> *particle, bool *escape) {
+  if (particle->isAlive()) {
+    *escape = cell->particleEscapesTheCell(particle);
+  } else {
+    *escape = false;
+  }
+}
+
 namespace pincell {
 
 template <typename FPrecision> struct PinCell {
@@ -83,10 +93,13 @@ template <typename FPrecision> struct PinCell {
       {"O16", 16, 9.34e-4f, temperature, false}};
 };
 
-template <typename XSDataStruct, typename FPrecision> int run_simulation() {
+template <typename XSDataViewType, typename XSDataStruct, typename FPrecision>
+int run_simulation() {
   using Isotope = neuxs::NuclideComponent<FPrecision>;
   using Cell = neuxs::Cell<XSDataStruct, FPrecision>;
   using Material = neuxs::Material<XSDataStruct, FPrecision>;
+
+  neuxs::MemoryManager memory_manager;
 
   neuxs::OpenMCCrossSectionReader reader;
   pincell::PinCell<FPrecision> pincell;
@@ -107,10 +120,10 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   make_material(&clad_material, pincell.clad_isotopes);
   make_material(&mod_material, pincell.mod_isotopes);
 
-  Cell fuel_cell(pincell.volume_fuel, 1 /* cell_id*/);
-  Cell gas_gap_cell(pincell.volume_gas, 2);
-  Cell cladding_cell(pincell.volume_clad, 3);
-  Cell moderator_cell(pincell.volume_mod, 4);
+  Cell fuel_cell(pincell.volume_fuel, 0);
+  Cell gas_gap_cell(pincell.volume_gas, 1);
+  Cell cladding_cell(pincell.volume_clad, 2);
+  Cell moderator_cell(pincell.volume_mod, 3);
 
   fuel_cell.setMaterial(&fuel_material);
   gas_gap_cell.setMaterial(&gas_material);
@@ -122,13 +135,24 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
   cladding_cell.setNeighboringCells({&moderator_cell, &gas_gap_cell});
   moderator_cell.setNeighboringCells({&cladding_cell});
 
-  auto *device_fuel_cell = fuel_cell.uploadToDevice();
-  auto *device_gas_gap_fuel_cell = gas_gap_cell.uploadToDevice();
-  auto *device_cladding_cell = cladding_cell.uploadToDevice();
-  auto *device_moderator_cell = moderator_cell.uploadToDevice();
+  auto device_fuel_cell = fuel_cell.uploadToDevice();
+  auto device_gas_gap_fuel_cell = gas_gap_cell.uploadToDevice();
+  auto device_cladding_cell = cladding_cell.uploadToDevice();
+  auto device_moderator_cell = moderator_cell.uploadToDevice();
 
-  auto device_cells = {device_fuel_cell, device_gas_gap_fuel_cell,
-                       device_cladding_cell, device_moderator_cell};
+  neuxs::Particle<FPrecision> particle(0, 1e6, true);
+
+  auto *device_particle =
+      memory_manager.allocateDevice<neuxs::Particle<FPrecision>>(1);
+
+  memory_manager.copyToDevice(&particle, device_particle, 1);
+
+  auto *escape = memory_manager.allocateDevice<bool>(1);
+
+  dummy_transport<<<1, 1>>>(device_fuel_cell, device_particle, escape);
+  bool r;
+  memory_manager.copyToHost(&r, escape, 1);
+  std::cout<<r;
 
   return 0;
 }
@@ -136,15 +160,18 @@ template <typename XSDataStruct, typename FPrecision> int run_simulation() {
 template <typename FPrecision> int dispatch_xs(std::string_view xs_type) {
   if (xs_type == "aos") {
     std::cout << "Using AoSLinear\n";
-    return run_simulation<neuxs::AoSLinear<FPrecision>, FPrecision>();
+    return run_simulation<neuxs::AoSLinearView<FPrecision>,
+                          neuxs::AoSLinear<FPrecision>, FPrecision>();
   }
   if (xs_type == "soa") {
     std::cout << "Using SoALinear\n";
-    return run_simulation<neuxs::SoALinear<FPrecision>, FPrecision>();
+    return run_simulation<neuxs::SoALinearView<FPrecision>,
+                          neuxs::SoALinear<FPrecision>, FPrecision>();
   }
   if (xs_type == "log") {
     std::cout << "Using LogarithmicHashAoS\n";
-    return run_simulation<neuxs::LogarithmicHashAoS<FPrecision>, FPrecision>();
+    return run_simulation<neuxs::LogarithmicHashAoSView<FPrecision>,
+                          neuxs::LogarithmicHashAoS<FPrecision>, FPrecision>();
   }
   std::cerr << "Invalid XS type: " << xs_type << " (expected aos|soa|log)\n";
   return 1;

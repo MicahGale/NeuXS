@@ -110,9 +110,40 @@ template <typename FPrecision> struct AoSLinearView {
   CrossSectionGridPoint<FPrecision> *_grid; // device ptr
   size_t _size;
 
-  __device__ size_t searchEnergyGrid(FPrecision energy) const;
+  __device__ size_t searchEnergyGrid(FPrecision energy) const {
+    if (energy <= _energy[0])
+      return 0;
+    if (energy >= _energy[_size - 1])
+      return _size - 2;
+
+    size_t lo = 0;
+    size_t hi = _size - 1;
+    while (hi - lo > 1) {
+      size_t mid = (lo + hi) >> 1;
+      if (_energy[mid] <= energy)
+        lo = mid;
+      else
+        hi = mid;
+    }
+    return lo;
+  };
   __device__ CrossSectionGridPoint<FPrecision>
-  getCrossSection(FPrecision energy) const;
+  getCrossSection(FPrecision energy) const {
+    size_t idx = searchEnergyGrid(energy);
+    FPrecision E_lo = _energy[idx];
+    FPrecision E_hi = _energy[idx + 1];
+    FPrecision f = (energy - E_lo) / (E_hi - E_lo);
+
+    const auto &p_lo = _grid[idx];
+    const auto &p_hi = _grid[idx + 1];
+
+    CrossSectionGridPoint<FPrecision> r;
+    r._sigma_s = p_lo._sigma_s + f * (p_hi._sigma_s - p_lo._sigma_s);
+    r._sigma_f = p_lo._sigma_f + f * (p_hi._sigma_f - p_lo._sigma_f);
+    r._sigma_c = p_lo._sigma_c + f * (p_hi._sigma_c - p_lo._sigma_c);
+    r._sigma_t = p_lo._sigma_t + f * (p_hi._sigma_t - p_lo._sigma_t);
+    return r;
+  };
 };
 
 template <typename FPrecision> struct SoALinearView {
@@ -120,9 +151,41 @@ template <typename FPrecision> struct SoALinearView {
   CrossSectionArray<FPrecision> _data; // each pointer inside is device
   size_t _size;
 
-  __device__ size_t searchEnergyGrid(FPrecision energy) const;
+  __device__ size_t searchEnergyGrid(FPrecision energy) const {
+    if (energy <= _energy[0])
+      return 0;
+    if (energy >= _energy[_size - 1])
+      return _size - 2;
+
+    size_t lo = 0;
+    size_t hi = _size - 1;
+    while (hi - lo > 1) {
+      size_t mid = (lo + hi) >> 1;
+      if (_energy[mid] <= energy)
+        lo = mid;
+      else
+        hi = mid;
+    }
+    return lo;
+  };
   __device__ CrossSectionGridPoint<FPrecision>
-  getCrossSection(FPrecision energy) const;
+  getCrossSection(FPrecision energy) const {
+    size_t idx = searchEnergyGrid(energy);
+    FPrecision E_lo = _energy[idx];
+    FPrecision E_hi = _energy[idx + 1];
+    FPrecision f = (energy - E_lo) / (E_hi - E_lo);
+
+    CrossSectionGridPoint<FPrecision> r;
+    r._sigma_s = _data._sigma_s[idx] +
+                 f * (_data._sigma_s[idx + 1] - _data._sigma_s[idx]);
+    r._sigma_f = _data._sigma_f[idx] +
+                 f * (_data._sigma_f[idx + 1] - _data._sigma_f[idx]);
+    r._sigma_c = _data._sigma_c[idx] +
+                 f * (_data._sigma_c[idx + 1] - _data._sigma_c[idx]);
+    r._sigma_t = _data._sigma_t[idx] +
+                 f * (_data._sigma_t[idx + 1] - _data._sigma_t[idx]);
+    return r;
+  }
 };
 
 /*
@@ -139,9 +202,52 @@ template <typename FPrecision> struct LogarithmicHashAoSView {
   size_t *_hash_table;        // device ptr, length = _n_bins + 1
   size_t _n_bins;
 
-  __device__ size_t searchEnergyGrid(FPrecision energy) const;
+  __device__ size_t searchEnergyGrid(FPrecision energy) const {
+    if (energy <= _base._energy[0])
+      return 0;
+    if (energy >= _base._energy[_base._size - 1])
+      return _base._size - 2;
+
+    FPrecision log_e = device_log(energy);
+    long bin = static_cast<long>((log_e - _log_energy_min) * _hash_delta);
+    if (bin < 0)
+      bin = 0;
+    if (bin >= static_cast<long>(_n_bins))
+      bin = static_cast<long>(_n_bins) - 1;
+
+    size_t lo = _hash_table[bin];
+    size_t hi = _hash_table[bin + 1];
+    if (hi >= _base._size)
+      hi = _base._size - 1;
+    if (hi <= lo)
+      return lo;
+
+    while (hi - lo > 1) {
+      size_t mid = (lo + hi) >> 1;
+      if (_base._energy[mid] <= energy)
+        lo = mid;
+      else
+        hi = mid;
+    }
+    return lo;
+  }
   __device__ CrossSectionGridPoint<FPrecision>
-  getCrossSection(FPrecision energy) const;
+  getCrossSection(FPrecision energy) const {
+    size_t idx = searchEnergyGrid(energy);
+    FPrecision E_lo = _base._energy[idx];
+    FPrecision E_hi = _base._energy[idx + 1];
+    FPrecision f = (energy - E_lo) / (E_hi - E_lo);
+
+    const auto &p_lo = _base._grid[idx];
+    const auto &p_hi = _base._grid[idx + 1];
+
+    CrossSectionGridPoint<FPrecision> r;
+    r._sigma_s = p_lo._sigma_s + f * (p_hi._sigma_s - p_lo._sigma_s);
+    r._sigma_f = p_lo._sigma_f + f * (p_hi._sigma_f - p_lo._sigma_f);
+    r._sigma_c = p_lo._sigma_c + f * (p_hi._sigma_c - p_lo._sigma_c);
+    r._sigma_t = p_lo._sigma_t + f * (p_hi._sigma_t - p_lo._sigma_t);
+    return r;
+  }
 };
 
 // =================== Cross section base class ===========================

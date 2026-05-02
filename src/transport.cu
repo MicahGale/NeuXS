@@ -2,43 +2,40 @@
 #include "transport.cuh"
 
 namespace neuxs {
-template <typename FP> struct Collision;
-template <typename XS, typename FP>
-__device__ void transport_particles(Particle<FP> *particles, size_t n_particles,
-                                    CellView<XS, FP> *cells, size_t n_cells) {
+
+template <typename XSViewType, typename FP>
+__global__ void transport_particles(Particle<FP> *particles, size_t n_particles,
+                                    CellView<XSViewType, FP> **cells,
+                                    size_t n_cells) {
   size_t part_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_idx >= n_particles)
     return;
-  Particle part = particles[part_idx];
-  if (part.getCellID() >= n_cells)
+  Particle<FP> *part = &particles[part_idx];
+  if (part->getCellID() >= n_cells)
     return;
-  CellView<XS, FP> *cell = cells[part.get_cell_id()];
-  while (part.isAlive()) {
+  CellView<XSViewType, FP> *cell = cells[part->getCellID()];
+  while (part->isAlive()) {
     bool escaped = cell->particleEscapesTheCell(*part);
     if (escaped) {
-      unsigned int next_neighbor_idx = part->_rng.nextInt(cell->_num_neighbors);
-      unsigned int next_cell_idx = cell->getRandomNeighborCellIdx(part);
+      unsigned int next_cell_idx = cell->getRandomNeighborCellIdx(*part);
       part->_cell_id = next_cell_idx;
       cell = cells[next_cell_idx];
-      // do the collision process
     } else {
-      CollisionInfo collision = cell->_material->decideCollideType(part);
+      CollisionInfo collision = cell->_material->decideCollideType(*part);
       switch (collision._type) {
       case CollisionType::CAPTURE:
         part->_alive = false;
         break;
       case CollisionType::SCATTERING: {
-
-        auto alpha =
-            cells[part._cell_id]->_material[collision._nuclide_id]._alpha;
-        part->_energy *= (1.0 - part->_rng->nextFloat() * (1 - alpha));
+        auto alpha = cell->_material[collision._nuclide_id]._alpha;
+        part->_energy *= (1.0f - part->_rng.nextFloat() * (1.0f - alpha));
         break;
       }
       case CollisionType::FISSION:
-        // Only simulating one fission neutron to avoid infinite branching
-        // Also avoids having to grow the particle bank
-        part = Particle(FISSION_ENERGY, part.getCellID(), part._rng._state);
-        particles[part_idx] = part;
+        *part = Particle<FP>(static_cast<FP>(FISSION_ENERGY), part->getCellID(),
+                             part->_rng._state);
+        particles[part_idx] = *part;
+        break;
       }
     }
   }

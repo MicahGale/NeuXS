@@ -46,7 +46,7 @@ struct SimpleRNG {
 // Particle definition. Mostly  placeholder
 template <typename FP> struct Particle {
 
-  FP _energy = static_cast<FP>(0);
+  FP _energy = static_cast<FP>(FISSION_ENERGY);
   unsigned int _cell_id = 0;
   bool _alive = true;
   SimpleRNG _rng{1ULL};
@@ -55,13 +55,14 @@ template <typename FP> struct Particle {
     _rng = SimpleRNG(seed);
   };
 
-  bool isAlive() { return this->_alive; }
-  unsigned int getCellID() { return this->_cell_id; }
+  __host__ __device__ bool isAlive() { return this->_alive; }
+  __host__ __device__ unsigned int getCellID() { return this->_cell_id; }
 };
 
-template <typename XS, typename FP>
-__device__ void transport_particles(Particle<FP> *particles, size_t n_particles,
-                                    CellView<XS, FP> *cells, size_t n_cells);
+template <typename XSViewType, typename FP>
+__global__ void transport_particles(Particle<FP> *particles, size_t n_particles,
+                                    CellView<XSViewType, FP> **cells,
+                                    size_t n_cells);
 
 } // namespace neuxs
 

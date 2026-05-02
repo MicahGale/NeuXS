@@ -58,7 +58,14 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
   unsigned int _num_isotopes;
 
   // Macroscopic total XS at a given energy:
-  __device__ FPrecision getMacroscopicSigmaT(FPrecision energy) const;
+  __device__ FPrecision getMacroscopicSigmaT(FPrecision energy) const {
+    FPrecision sigma_t = static_cast<FPrecision>(0);
+    for (unsigned int i = 0; i < _num_isotopes; ++i) {
+      auto grid = _xs_views[i].getCrossSection(energy);
+      sigma_t += _nuclides[i]._atom_dens * grid._sigma_t;
+    }
+    return sigma_t;
+  }
 
   /*
    * first we sample the nuclide reaction type using a random_number.
@@ -94,7 +101,8 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
     }
 
     info._nuclide_id = nuclide_index;
-    // now we have which isotope we can
+    // now we that we know which isotope we can sample the
+    // reaction type
     rand_num = part._rng.nextFloat();
 
     if (rand_num <

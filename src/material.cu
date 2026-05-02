@@ -30,17 +30,17 @@ __host__ __device__ NuclideComponent<FPrecision>::NuclideComponent(
 //                              MaterialView
 // ============================================================================
 
-template <typename XSViewType, typename FPrecision>
-__device__ FPrecision
-MaterialView<XSViewType, FPrecision>::getMacroscopicSigmaT(
-    FPrecision energy) const {
-  FPrecision sigma_t = static_cast<FPrecision>(0);
-  for (unsigned int i = 0; i < _num_isotopes; ++i) {
-    auto grid = _xs_views[i].getCrossSection(energy);
-    sigma_t += _nuclides[i]._atom_dens * grid._sigma_t;
-  }
-  return sigma_t;
-}
+// template <typename XSViewType, typename FPrecision>
+//__device__ FPrecision
+// MaterialView<XSViewType, FPrecision>::getMacroscopicSigmaT(
+//     FPrecision energy) const {
+//   FPrecision sigma_t = static_cast<FPrecision>(0);
+//   for (unsigned int i = 0; i < _num_isotopes; ++i) {
+//     auto grid = _xs_views[i].getCrossSection(energy);
+//     sigma_t += _nuclides[i]._atom_dens * grid._sigma_t;
+//   }
+//   return sigma_t;
+// }
 
 // ============================================================================
 //                                Material
