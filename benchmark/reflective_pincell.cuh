@@ -87,8 +87,8 @@ int run_simulation() {
   auto device_cladding_cell = cladding_cell.uploadToDevice();
   auto device_moderator_cell = moderator_cell.uploadToDevice();
 
-  // Particle *host_particles =
-  //  neuxs::get_mono_energetic_particles<FPrecision>(512, fuel_cell._id);
+  Particle *host_particles =
+      neuxs::get_mono_energetic_particles<FPrecision>(512, fuel_cell._id);
   return 0;
 
   // I will worry about the cleanup later

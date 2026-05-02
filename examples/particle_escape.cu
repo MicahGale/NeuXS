@@ -25,7 +25,7 @@ dummy_transport(neuxs::CellView<neuxs::AoSLinearView<float>, float> *cell,
     printf("getting random cells\n");
     printf("particle old cell was %d\n", particle->getCellID());
     *next_cell_id = cell->getRandomNeighborCellIdx(particle);
-    printf("next random cell id = %d\n", *next_cell_id);
+    printf("next random cell id = %zu\n", *next_cell_id);
   }
 }
 

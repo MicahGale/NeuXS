@@ -45,26 +45,28 @@ struct SimpleRNG {
 
 // Particle definition. Mostly  placeholder
 template <typename FP> struct Particle {
-
+  __host__ __device__ Particle() = default;
   __host__ __device__ Particle(FP energy, unsigned int id)
-      : _energy(energy), _cell_id(id) {}
+      : _energy(energy), _cell_id(id) {};
 
-  FP _energy;
+  __host__ __device__ Particle(FP energy, unsigned int cell_id,
+                               unsigned int seed)
+      : _energy(energy), _cell_id(cell_id), _alive(true),
+        _rng(SimpleRNG(seed)) {}
+
+  FP _energy = FISSION_ENERGY;
   unsigned int _cell_id = 0;
   bool _alive = true;
   SimpleRNG _rng{1ULL};
-
-  Particle(FP energy, unsigned int cell_id, unsigned int seed)
-      : _energy(energy), _cell_id(cell_id), _alive(true) {
-    _rng = SimpleRNG(seed);
-  };
 
   __host__ __device__ bool isAlive() { return this->_alive; }
   __host__ __device__ unsigned int getCellID() { return this->_cell_id; }
 };
 
 template <typename FP>
-Particle<FP> *get_mono_energetic_particles(size_t n_particles, size_t cell_id);
+__host__ Particle<FP> *
+get_mono_energetic_particles(unsigned int number_of_particles,
+                             unsigned int cell_id);
 
 template <typename XSViewType, typename FP>
 __global__ void
