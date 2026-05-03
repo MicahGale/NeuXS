@@ -290,8 +290,14 @@ public:
 
   ~AoSLinear() override;
 
-  __host__ void setCrossSection(const OpenMCCrossSectionReader &reader,
-                                NuclideComponent<FPrecision> &nuclide) override;
+  __host__ void prepareCrossSection(const OpenMCCrossSectionReader &reader,
+                                    NuclideComponent<FPrecision> &nuclide);
+
+  __host__ virtual void
+  setCrossSection(const OpenMCCrossSectionReader &reader,
+                  NuclideComponent<FPrecision> &nuclide) override {
+    this->prepareCrossSection(reader, nuclide);
+  };
 
   __host__ ViewType uploadToDevice();
 
@@ -315,8 +321,9 @@ public:
 
   ~SoALinear() override;
 
-  __host__ void setCrossSection(const OpenMCCrossSectionReader &reader,
-                                NuclideComponent<FPrecision> &nuclide) override;
+  __host__ virtual void
+  setCrossSection(const OpenMCCrossSectionReader &reader,
+                  NuclideComponent<FPrecision> &nuclide) override;
 
   __host__ ViewType uploadToDevice();
 
@@ -345,6 +352,11 @@ public:
 
   ~LogarithmicHashAoS() override;
 
+  __host__ virtual void setCrossSection(const OpenMCCrossSectionReader &reader,
+                                        NuclideComponent<FPrecision> &nuclide) {
+    this->prepareCrossSection(reader, nuclide);
+    this->setLogarithmicHashGrid();
+  };
   /*
    * Build the log-hash table from the already-populated energy grid. Call
    * *after* setCrossSection(). `n_bins` trades off table size vs.

@@ -82,10 +82,10 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
    * xs section
    *
    * */
-  __device__ CollisionInfo decideCollideType(Particle<FPrecision> part) {
+  __device__ CollisionInfo decideCollideType(Particle<FPrecision> &part) {
 
     FPrecision sigma_t_mat = this->getMacroscopicSigmaT(part._energy);
-    FPrecision sigma_t_cumulative = 0;
+    FPrecision sigma_t_cumulative = static_cast<FPrecision>(0);
     CollisionInfo info;
     CrossSectionGridPoint<FPrecision> collision_nuclide_xs_grid;
     auto rand_num = part._rng.nextFloat();
@@ -94,7 +94,8 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
 
       collision_nuclide_xs_grid =
           this->_xs_views[nuclide_index].getCrossSection(part._energy);
-      sigma_t_cumulative += collision_nuclide_xs_grid._sigma_t;
+      sigma_t_cumulative += this->_nuclides[nuclide_index]._atom_dens *
+                            collision_nuclide_xs_grid._sigma_t;
       if (rand_num < sigma_t_cumulative / sigma_t_mat)
         break;
     }

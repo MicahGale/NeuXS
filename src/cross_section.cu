@@ -22,7 +22,7 @@ template <typename FPrecision> AoSLinear<FPrecision>::~AoSLinear() {
 }
 
 template <typename FPrecision>
-void AoSLinear<FPrecision>::setCrossSection(
+void AoSLinear<FPrecision>::prepareCrossSection(
     const OpenMCCrossSectionReader &reader,
     NuclideComponent<FPrecision> &nuclide) {
 

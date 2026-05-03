@@ -11,7 +11,7 @@ namespace neuxs {
 
 template <typename XSType, typename FPrecision> struct CellView;
 
-const double FISSION_ENERGY = 2.2e6; // [eV] just an approximation.
+const double FISSION_ENERGY = 0.0253; // [eV] just an approximation.
 
 enum class EventType { COLLIDE, ESCAPE, DIE };
 
@@ -94,9 +94,10 @@ __global__ void transport_particles(Particle<FP> *particles, size_t n_particles,
     } else {
       CollisionInfo collision = cell->_material->decideCollideType(part);
       switch (collision._type) {
-      case CollisionType::CAPTURE:
+      case CollisionType::CAPTURE: {
         part._alive = false;
         break;
+      }
       case CollisionType::SCATTERING: {
         FP alpha = cell->_material->_nuclides[collision._nuclide_id]._alpha;
         part._energy *= (static_cast<FP>(1) -
@@ -104,8 +105,9 @@ __global__ void transport_particles(Particle<FP> *particles, size_t n_particles,
         break;
       }
       case CollisionType::FISSION:
+        uint64_t new_seed = part._rng._state;
         part = Particle<FP>(static_cast<FP>(FISSION_ENERGY), part._cell_id,
-                            part._rng._state);
+                            new_seed);
         break;
       }
     }
