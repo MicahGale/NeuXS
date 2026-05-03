@@ -21,22 +21,22 @@ template <typename FPrecision> struct PinCell {
   const FPrecision volume_gas = 1.374;
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> fuel_isotopes = {
-      {"U235", 235, 1.15e-6f, temperature, true},
-      {"U238", 238, 5.45e-5f, temperature, true},
-      {"O16", 16, 9.79e-4f, temperature, false}};
+      {"U235", 235, 1.15e-6, temperature, true},
+      {"U238", 238, 5.45e-5, temperature, true},
+      {"O16", 16, 9.79e-4, temperature, false}};
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> gas_isotopes = {
-      {"C12", 12, 5.02e-8f, temperature, false}};
+      {"C12", 12, 5.02e-8, temperature, false}};
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> clad_isotopes = {
-      {"Zr90", 90, 2.84e-4f, temperature, false},
-      {"Sn120", 120, 2.26e-6f, temperature, false},
-      {"Fe56", 56, 2.15e-6f, temperature, false},
-      {"Cr52", 52, 1.16e-6f, temperature, false}};
+      {"Zr90", 90, 2.84e-4, temperature, false},
+      {"Sn120", 120, 2.26e-6, temperature, false},
+      {"Fe56", 56, 2.15e-6, temperature, false},
+      {"Cr52", 52, 1.16e-6, temperature, false}};
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> mod_isotopes = {
-      {"H1", 1, 2.99e-2f, temperature, false},
-      {"O16", 16, 9.34e-4f, temperature, false}};
+      {"H1", 1, 2.99e-2, temperature, false},
+      {"O16", 16, 9.34e-4, temperature, false}};
 };
 
 template <typename XSDataViewType, typename XSDataStruct, typename FPrecision>
