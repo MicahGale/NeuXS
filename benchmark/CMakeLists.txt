@@ -1,0 +1,2 @@
+add_executable(pincell reflective_pincell.cu reflective_pincell.cuh)
+target_link_libraries(pincell PRIVATE neuxslib)

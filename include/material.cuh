@@ -11,6 +11,11 @@
 namespace neuxs {
 enum class CollisionType { SCATTERING, FISSION, CAPTURE };
 
+struct CollisionInfo {
+  CollisionType _type;
+  size_t _nuclide_id;
+};
+
 class OpenMCCrossSectionReader;
 
 // Forward declaration
@@ -52,12 +57,66 @@ template <typename XSViewType, typename FPrecision> struct MaterialView {
   unsigned int _num_isotopes;
 
   // Macroscopic total XS at a given energy:
-  __device__ FPrecision getMacroscopicSigmaT(FPrecision energy) const;
+  __device__ FPrecision getMacroscopicSigmaT(FPrecision energy) const {
+    FPrecision sigma_t = static_cast<FPrecision>(0);
+    for (unsigned int i = 0; i < _num_isotopes; ++i) {
+      auto grid = _xs_views[i].getCrossSection(energy);
+      sigma_t += _nuclides[i]._atom_dens * grid._sigma_t;
+    }
+    return sigma_t;
+  }
 
-  // Full macroscopic reaction breakdown — used when deciding which reaction
-  // channel fires after a collision is known to occur.
-  __device__ CrossSectionGridPoint<FPrecision>
-  getMacroscopicXS(FPrecision energy) const;
+  /*
+   * first we sample the nuclide reaction type using a random_number.
+   * total_sigma_t_of_material at (E)
+   * auto sigma_t = 0;
+   * for (size_t nuclide_index =0 ; nuclide_index < this->_num_isotopes;
+   * nuclide_index++ ){ sigma_t +=
+   * _xs_view[nuclide_index]->getTotalSigmaT(particle._energy); if
+   * (random_number > sigma_t/total_sigma_t_of_material){ break; may not be
+   * the best idea as we are gonna get thread divergence but then again my
+   * loop isn't that big. So maybe it shouldn't matter
+   *   }
+   * }
+   * then we sample the reaction type for which can just do it by microscopic
+   * xs section
+   *
+   * */
+  __device__ CollisionInfo decideCollideType(Particle<FPrecision> &part) {
+
+    FPrecision sigma_t_mat = this->getMacroscopicSigmaT(part._energy);
+    FPrecision sigma_t_cumulative = static_cast<FPrecision>(0);
+    CollisionInfo info;
+    CrossSectionGridPoint<FPrecision> collision_nuclide_xs_grid;
+    auto rand_num = part._rng.nextFloat();
+    size_t nuclide_index = 0;
+    for (; nuclide_index < this->_num_isotopes; nuclide_index++) {
+
+      collision_nuclide_xs_grid =
+          this->_xs_views[nuclide_index].getCrossSection(part._energy);
+      sigma_t_cumulative += this->_nuclides[nuclide_index]._atom_dens *
+                            collision_nuclide_xs_grid._sigma_t;
+      if (rand_num < sigma_t_cumulative / sigma_t_mat)
+        break;
+    }
+
+    info._nuclide_id = nuclide_index;
+    // now we that we know which isotope we can sample the
+    // reaction type
+    rand_num = part._rng.nextFloat();
+
+    if (rand_num <
+        collision_nuclide_xs_grid._sigma_c / collision_nuclide_xs_grid._sigma_t)
+      info._type = CollisionType::CAPTURE;
+    else if (rand_num < (collision_nuclide_xs_grid._sigma_c +
+                         collision_nuclide_xs_grid._sigma_s) /
+                            collision_nuclide_xs_grid._sigma_t)
+      info._type = CollisionType::SCATTERING;
+    else
+      info._type = CollisionType::FISSION;
+
+    return info;
+  }
 };
 
 /*
@@ -97,11 +156,6 @@ public:
    * DeviceBuffer members and released when *this* object is destroyed.
    */
   __host__ ViewType *uploadToDevice();
-
-  __device__ void getMacroscopicXS(FPrecision *energy,
-                                   FPrecision *cross_section);
-
-  __device__ Collision<FPrecision> decideCollideType(Particle<FPrecision> part);
 
   __host__ void setCrossSection(NuclideComponent<FPrecision> isotope);
 

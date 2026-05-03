@@ -7,42 +7,6 @@
 namespace neuxs {
 
 // ============================================================================
-// CellView
-// ============================================================================
-
-template <typename XSViewType, typename FPrecision>
-__device__ bool CellView<XSViewType, FPrecision>::particleEscapesTheCell(
-    Particle<FPrecision> *particle) const {
-  const FPrecision sigma_t = _material->getMacroscopicSigmaT(particle->_energy);
-
-  // Pathological case: no material interaction at this energy → escape.
-  if (sigma_t <= static_cast<FPrecision>(0))
-    return true;
-
-  const FPrecision xi = static_cast<FPrecision>(particle->_rng.nextDouble());
-  const FPrecision d_collision = -device_log(xi) / sigma_t;
-
-  const FPrecision characteristic_length = device_cbrt(_volume);
-  return d_collision > characteristic_length;
-}
-
-template <typename XSViewType, typename FPrecision>
-__device__ unsigned int
-CellView<XSViewType, FPrecision>::getRandomNeighborCellIdx(
-    Particle<FPrecision> *particle) const {
-  if (_num_neighbors == 0)
-    return static_cast<unsigned int>(1e15);
-
-  const FPrecision xi = static_cast<FPrecision>(particle->_rng.nextDouble());
-  unsigned int i =
-      static_cast<unsigned int>(xi * static_cast<FPrecision>(_num_neighbors));
-  if (i >= _num_neighbors)
-    i = _num_neighbors - 1;
-
-  return _neighbor_cell_ids[i];
-}
-
-// ============================================================================
 // Cell
 // ============================================================================
 
@@ -122,12 +86,29 @@ Cell<XSType, FPrecision>::getMaterial() const {
 
 // CellView — combinations of {AoSLinearView, SoALinearView,
 // LogarithmicHashAoSView} × {float, double}
-template struct CellView<AoSLinearView<float>, float>;
-template struct CellView<AoSLinearView<double>, double>;
-template struct CellView<SoALinearView<float>, float>;
-template struct CellView<SoALinearView<double>, double>;
-template struct CellView<LogarithmicHashAoSView<float>, float>;
-template struct CellView<LogarithmicHashAoSView<double>, double>;
+template __device__ bool
+CellView<AoSLinearView<float>, float>::particleEscapesTheCell(
+    Particle<float> *) const;
+
+template __device__ bool
+CellView<AoSLinearView<double>, double>::particleEscapesTheCell(
+    Particle<double> *) const;
+
+template __device__ bool
+CellView<SoALinearView<float>, float>::particleEscapesTheCell(
+    Particle<float> *) const;
+
+template __device__ bool
+CellView<SoALinearView<double>, double>::particleEscapesTheCell(
+    Particle<double> *) const;
+
+template __device__ bool
+CellView<LogarithmicHashAoSView<float>, float>::particleEscapesTheCell(
+    Particle<float> *) const;
+
+template __device__ bool
+CellView<LogarithmicHashAoSView<double>, double>::particleEscapesTheCell(
+    Particle<double> *) const;
 
 // Cell — combinations of {AoSLinear, SoALinear, LogarithmicHashAoS} ×
 // {float, double}
