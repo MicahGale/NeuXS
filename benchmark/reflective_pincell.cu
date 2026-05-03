@@ -15,7 +15,7 @@
 int main(int argc, char **argv) {
   if (argc < 3) {
     std::cerr << "Usage: " << (argc > 0 ? argv[0] : "./app")
-              << " <aos|soa|log> <double|single>\n";
+              << " <aos|soa|log|slbw> <double|single>\n";
     return 1;
   }
 

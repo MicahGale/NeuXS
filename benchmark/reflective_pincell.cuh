@@ -123,7 +123,13 @@ template <typename FPrecision> int dispatch_xs(std::string_view xs_type) {
     return run_simulation<neuxs::LogarithmicHashAoSView<FPrecision>,
                           neuxs::LogarithmicHashAoS<FPrecision>, FPrecision>();
   }
-  std::cerr << "Invalid XS type: " << xs_type << " (expected aos|soa|log)\n";
+  if (xs_type == "slbw") {
+    std::cout << "Using SLBW\n";
+    return run_simulation<neuxs::PiecewiseSlbwModelView<FPrecision>,
+                          neuxs::PiecewiseSlbwModel<FPrecision>, FPrecision>();
+  }
+  std::cerr << "Invalid XS type: " << xs_type
+            << " (expected aos|soa|log|slbw)\n";
   return 1;
 }
 

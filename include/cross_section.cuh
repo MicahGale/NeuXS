@@ -79,36 +79,6 @@ template <typename FPrecision> struct CrossSectionArray {
   FPrecision *_sigma_t;
 };
 
-template <typename FPrecision> struct PiecewiseSlbwModel {
-  /**
-    Implementation based on the "Lulu Li notes."
-    Li, Lulu. 22.211 Nuclear Reactor Physics I Notes. 2012. archived:
-    <https://archive.org/details/ne-mit-notes-lulu>.
-   */
-private:
-  const static FPrecision R_0 = 1.2e-15; // 1.2 fm
-  const FPrecision _A;
-  const FPrecision _kT;
-  const FPrecision _sigma_pot;
-  const FPrecision *_res_E0;
-  const FPrecision *_res_gamma_n;
-  const FPrecision *_res_gamma_g;
-  const size_t _n_res;
-
-public:
-  PiecewiseSlbwModel(FPrecision A, FPrecision temp, FPrecision *_res_E0,
-                     FPrecision *res_gamma_n, FPrecision *res_gamma_g,
-                     size_t n_res)
-      : _A(A), _res_E0(_res_E0), _res_gamma_n(res_gamma_n),
-        _res_gamma_g(res_gamma_g), _n_res(n_res) {
-    _kT = temp * BOLTZMANN_CONST;
-    // $R = r_0 \sqrt^3{A}$
-    FPrecision radius = R_0 * cbrt(A);
-    // $\sigma_{potential} = r * \pi R^2$
-    _sigma_pot = 4 * M_PI * radius * radius;
-  }
-};
-
 template <typename FPrecision> struct PiecewiseSlbwModelView {
   /**
     Implementation based on the "Lulu Li notes."
@@ -116,7 +86,8 @@ template <typename FPrecision> struct PiecewiseSlbwModelView {
     <https://archive.org/details/ne-mit-notes-lulu>.
    */
 private:
-  const static FPrecision PLANCK_CONST = 0.0;
+  // https://en.wikipedia.org/wiki/Planck_constant
+  static constexpr FPrecision PLANCK_CONST = 6.582119e-16; //[eVs]
   const FPrecision _A;
   const FPrecision _kT;
   const FPrecision _sigma_pot;
@@ -131,6 +102,43 @@ public:
                          FPrecision *res_gamma_g, size_t n_res)
       : _A(A), _kT(kT), _sigma_pot(sigma_pot), _res_E0(_res_E0),
         _res_gamma_n(res_gamma_n), _res_gamma_g(res_gamma_g), _n_res(n_res) {}
+
+  __device__ size_t searchEnergyGrid(FPrecision energy) const { return 0; };
+  __device__ CrossSectionGridPoint<FPrecision>
+  getCrossSection(FPrecision energy);
+};
+
+template <typename FPrecision> struct PiecewiseSlbwModel {
+  /**
+    Implementation based on the "Lulu Li notes."
+    Li, Lulu. 22.211 Nuclear Reactor Physics I Notes. 2012. archived:
+    <https://archive.org/details/ne-mit-notes-lulu>.
+   */
+private:
+  static constexpr FPrecision R_0 = 1.2e-15; // 1.2 fm
+  // https://en.wikipedia.org/wiki/Boltzmann_constant
+  static constexpr FPrecision BOLTZMANN_CONST = 8.617333e-5; // eV/K
+  const FPrecision _A;
+  const FPrecision _kT;
+  const FPrecision _sigma_pot;
+  const FPrecision *_res_E0;
+  const FPrecision *_res_gamma_n;
+  const FPrecision *_res_gamma_g;
+  const size_t _n_res;
+
+public:
+  using ViewType = PiecewiseSlbwModelView<FPrecision>;
+  PiecewiseSlbwModel(FPrecision A, FPrecision temp, FPrecision *_res_E0,
+                     FPrecision *res_gamma_n, FPrecision *res_gamma_g,
+                     size_t n_res)
+      : _A(A), _res_E0(_res_E0), _res_gamma_n(res_gamma_n),
+        _res_gamma_g(res_gamma_g), _n_res(n_res) {
+    _kT = temp * BOLTZMANN_CONST;
+    // $R = r_0 \sqrt^3{A}$
+    FPrecision radius = R_0 * cbrt(A);
+    // $\sigma_{potential} = r * \pi R^2$
+    _sigma_pot = 4 * M_PI * radius * radius;
+  }
 };
 
 template <typename FPrecision> struct HashGrid {
