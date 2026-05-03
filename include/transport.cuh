@@ -11,7 +11,7 @@ namespace neuxs {
 
 template <typename XSType, typename FPrecision> struct CellView;
 
-const double FISSION_ENERGY = 0.0253; // [eV] just an approximation.
+const double FISSION_ENERGY = 1e6; // [eV] just an approximation.
 
 enum class EventType { COLLIDE, ESCAPE, DIE };
 
