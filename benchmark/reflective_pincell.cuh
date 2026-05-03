@@ -18,15 +18,11 @@ template <typename FPrecision> struct PinCell {
   const FPrecision volume_fuel = 67.92;
   const FPrecision volume_mod = 80.306;
   const FPrecision volume_clad = 8.4;
-  const FPrecision volume_gas = 1.374;
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> fuel_isotopes = {
       {"U235", 235, 1.15e-6, temperature, true},
       {"U238", 238, 5.45e-5, temperature, true},
       {"O16", 16, 9.79e-4, temperature, false}};
-
-  const std::vector<neuxs::NuclideComponent<FPrecision>> gas_isotopes = {
-      {"C12", 12, 5.02e-8, temperature, false}};
 
   const std::vector<neuxs::NuclideComponent<FPrecision>> clad_isotopes = {
       {"Zr90", 90, 2.84e-4, temperature, false},
@@ -61,30 +57,24 @@ int run_simulation() {
   Material fuel_material(reader, pincell.fuel_isotopes.size());
   Material clad_material(reader, pincell.clad_isotopes.size());
   Material mod_material(reader, pincell.mod_isotopes.size());
-  Material gas_material(reader, pincell.gas_isotopes.size());
 
   make_material(&fuel_material, pincell.fuel_isotopes);
-  make_material(&gas_material, pincell.gas_isotopes);
   make_material(&clad_material, pincell.clad_isotopes);
   make_material(&mod_material, pincell.mod_isotopes);
 
   Cell fuel_cell(pincell.volume_fuel, 0);
-  Cell gas_gap_cell(pincell.volume_gas, 1);
-  Cell cladding_cell(pincell.volume_clad, 2);
-  Cell moderator_cell(pincell.volume_mod, 3);
+  Cell cladding_cell(pincell.volume_clad, 1);
+  Cell moderator_cell(pincell.volume_mod, 2);
 
   fuel_cell.setMaterial(&fuel_material);
-  gas_gap_cell.setMaterial(&gas_material);
   cladding_cell.setMaterial(&clad_material);
   moderator_cell.setMaterial(&mod_material);
 
-  fuel_cell.setNeighboringCells({&gas_gap_cell});
-  gas_gap_cell.setNeighboringCells({&fuel_cell, &cladding_cell});
-  cladding_cell.setNeighboringCells({&moderator_cell, &gas_gap_cell});
+  fuel_cell.setNeighboringCells({&cladding_cell});
+  cladding_cell.setNeighboringCells({&moderator_cell, &fuel_cell});
   moderator_cell.setNeighboringCells({&cladding_cell});
 
   auto device_fuel_cell = fuel_cell.uploadToDevice();
-  auto device_gas_gap_fuel_cell = gas_gap_cell.uploadToDevice();
   auto device_cladding_cell = cladding_cell.uploadToDevice();
   auto device_moderator_cell = moderator_cell.uploadToDevice();
 
@@ -101,10 +91,9 @@ int run_simulation() {
   int threads = 256;
   int blocks = (number_of_particles + threads - 1) / threads;
   CellViewType *h_cell_ptrs[n_cells] = {
-      device_fuel_cell,         // id = 0
-      device_gas_gap_fuel_cell, // id = 1
-      device_cladding_cell,     // id = 2
-      device_moderator_cell     // id = 3
+      device_fuel_cell,     // id = 0
+      device_cladding_cell, // id = 1
+      device_moderator_cell // id = 2
   };
 
   CellViewType **d_cell_ptrs =

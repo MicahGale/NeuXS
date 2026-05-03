@@ -100,8 +100,8 @@ __global__ void transport_particles(Particle<FP> *particles, size_t n_particles,
       }
       case CollisionType::SCATTERING: {
         FP alpha = cell->_material->_nuclides[collision._nuclide_id]._alpha;
-        part._energy *= (static_cast<FP>(1) -
-                         part._rng.nextFloat() * (static_cast<FP>(1) - alpha));
+        part._energy *=
+            (1 - static_cast<FP>(part._rng.nextFloat() * (1 - alpha)));
         break;
       }
       case CollisionType::FISSION:
