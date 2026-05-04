@@ -108,11 +108,61 @@ public:
         _res_gamma_n(res_gamma_n), _res_gamma_g(res_gamma_g), _n_res(n_res),
         _fissile(fissile) {}
 
-  __device__ size_t searchEnergyGrid(FPrecision energy) const { return 0; };
-  __device__ CrossSectionGridPoint<FPrecision>
-  getCrossSection(FPrecision energy);
+  __device__ size_t searchEnergyGrid(FPrecision energy) const {
+    if (energy <= _res_E0[0])
+      return 0;
+    if (energy >= _res_E0[_n_res - 1])
+      return _n_res - 2;
+
+    size_t lo = 0;
+    size_t hi = _n_res - 1;
+    while (hi - lo > 1) {
+      size_t mid = (lo + hi) >> 1;
+      if (_res_E0[mid] <= energy)
+        lo = mid;
+      else
+        hi = mid;
+    }
+    // find nearest resonance
+    if ((energy - _res_E0[lo]) <= (_res_E0[hi] - energy))
+      return lo;
+    return hi;
+  };
   __device__ thrust::complex<FPrecision> ugly_psi_xi(FPrecision x,
-                                                     FPrecision xsi);
+                                                     FPrecision xsi) {
+    thrust::complex<FPrecision> inner_term =
+        thrust::complex<FPrecision>(0.0, 1.0) *
+        thrust::complex<FPrecision>(xsi, static_cast<FPrecision>(0.0)) *
+        thrust::complex<FPrecision>(x, static_cast<FPrecision>(1.0)) / 2.0;
+    thrust::complex<FPrecision> exp_term = thrust::exp(inner_term);
+    return exp_term * exp_term * Faddeeva::erfc(-inner_term);
+  }
+
+  __device__ CrossSectionGridPoint<FPrecision>
+  getCrossSection(FPrecision energy) {
+    size_t E0_idx = this->searchEnergyGrid(energy);
+    FPrecision E0 = this->_res_E0[E0_idx];
+    FPrecision gg, gn, gamma;
+    gg = this->_res_gamma_g[E0_idx];
+    gn = this->_res_gamma_n[E0_idx];
+    gamma = gg + gn;
+    FPrecision x = 2 * (energy - E0) / gamma;
+    FPrecision xsi = gamma * sqrt(this->_A / (4.0 * this->_kT * E0));
+    thrust::complex<FPrecision> ugly_part =
+        xsi / (2.0 * sqrt(M_PI)) * this->ugly_psi_xi(x, xsi);
+    FPrecision psi = ugly_part.real();
+    FPrecision xi = ugly_part.imag();
+    FPrecision r_inner = (this->_A + 1.0) / this->_A;
+    FPrecision r = 2603911.0 / energy * r_inner * r_inner;
+    FPrecision q = sqrt(r * this->_sigma_pot);
+    FPrecision sigma_capture = sqrt(E0 / energy) * gn / gamma * gg * r * psi;
+    FPrecision sigma_scatter =
+        gn * gn / (gamma * gamma) * (r * psi + q * xi) + this->_sigma_pot;
+    FPrecision sigma_f =
+        (this->_fissile) ? sigma_capture * this->FISSION_MULTIPLIER : 0.0;
+    return CrossSectionGridPoint<FPrecision>(sigma_scatter, sigma_f,
+                                             sigma_capture);
+  }
 };
 
 template <typename FPrecision> class PiecewiseSlbwModel {
