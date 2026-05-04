@@ -3512,3 +3512,8 @@ __host__ __device__ FPrecision FADDEEVA(w_im)(FPrecision x) {
     return -w_im_y100<FPrecision>(100 / (1 - x), -x);
   }
 }
+
+template thrust::complex<float> Faddeeva::erfc<float>(thrust::complex<float>,
+                                                      float);
+template thrust::complex<double> Faddeeva::erfc<double>(thrust::complex<double>,
+                                                        double);

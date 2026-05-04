@@ -105,6 +105,8 @@ template struct MaterialView<SoALinearView<float>, float>;
 template struct MaterialView<SoALinearView<double>, double>;
 template struct MaterialView<LogarithmicHashAoSView<float>, float>;
 template struct MaterialView<LogarithmicHashAoSView<double>, double>;
+template struct MaterialView<PiecewiseSlbwModelView<float>, float>;
+template struct MaterialView<PiecewiseSlbwModelView<double>, double>;
 
 template class Material<AoSLinear<float>, float>;
 template class Material<AoSLinear<double>, double>;
@@ -112,5 +114,7 @@ template class Material<SoALinear<float>, float>;
 template class Material<SoALinear<double>, double>;
 template class Material<LogarithmicHashAoS<float>, float>;
 template class Material<LogarithmicHashAoS<double>, double>;
+template class Material<PiecewiseSlbwModel<float>, float>;
+template class Material<PiecewiseSlbwModel<double>, double>;
 
 } // namespace neuxs
