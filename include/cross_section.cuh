@@ -178,28 +178,37 @@ private:
   static constexpr FPrecision R_0 = 1.2e-15; // 1.2 fm
   // https://en.wikipedia.org/wiki/Boltzmann_constant
   static constexpr FPrecision BOLTZMANN_CONST = 8.617333e-5; // eV/K
-  const FPrecision _A;
-  const FPrecision _kT;
-  const FPrecision _sigma_pot;
-  const FPrecision *_res_E0;
-  const FPrecision *_res_gamma_n;
-  const FPrecision *_res_gamma_g;
-  const size_t _n_res;
-  bool _fissile;
+
+  FPrecision _A{0};
+  FPrecision _kT{0};
+  FPrecision _sigma_pot{0};
+  size_t _n_res{0};
+  bool _fissile{false};
+
+  FPrecision *_res_E0_host{nullptr};
+  FPrecision *_res_gamma_n_host{nullptr};
+  FPrecision *_res_gamma_g_host{nullptr};
+
+  DeviceBuffer<FPrecision> _d_res_E0;
+  DeviceBuffer<FPrecision> _d_res_gamma_n;
+  DeviceBuffer<FPrecision> _d_res_gamma_g;
+
+  bool _uploaded{false};
+  PiecewiseSlbwModelView<FPrecision> _cached_view;
 
 public:
   using ViewType = PiecewiseSlbwModelView<FPrecision>;
-  PiecewiseSlbwModel(FPrecision A, FPrecision temp, FPrecision *_res_E0,
-                     FPrecision *res_gamma_n, FPrecision *res_gamma_g,
-                     size_t n_res, bool fissile)
-      : _A(A), _res_E0(_res_E0), _res_gamma_n(res_gamma_n),
-        _res_gamma_g(res_gamma_g), _n_res(n_res), _fissile(fissile) {
-    _kT = temp * BOLTZMANN_CONST;
-    // $R = r_0 \sqrt^3{A}$
-    FPrecision radius = R_0 * cbrt(A);
-    // $\sigma_{potential} = r * \pi R^2$
-    _sigma_pot = 4 * M_PI * radius * radius;
+
+  PiecewiseSlbwModel() = default;
+  ~PiecewiseSlbwModel() {
+    delete[] _res_E0_host;
+    delete[] _res_gamma_n_host;
+    delete[] _res_gamma_g_host;
   }
+
+  void setCrossSection(const OpenMCCrossSectionReader &reader,
+                       NuclideComponent<FPrecision> &nuclide);
+  ViewType uploadToDevice();
 };
 
 template <typename FPrecision> struct HashGrid {

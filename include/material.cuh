@@ -35,6 +35,7 @@ template <typename FPrecision> struct NuclideComponent {
   FPrecision _temperature;
   bool _allows_fission;
   FPrecision _alpha;
+  size_t _A;
 };
 
 // ==================== MaterialView (device-facing POD) =====================
