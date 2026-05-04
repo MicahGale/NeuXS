@@ -129,14 +129,8 @@ public:
       return lo;
     return hi;
   };
-  __device__ thrust::complex<FPrecision> ugly_psi_xi(FPrecision x,
-                                                     FPrecision xsi) {
-    thrust::complex<FPrecision> inner_term =
-        thrust::complex<FPrecision>(0.0, 1.0) *
-        thrust::complex<FPrecision>(xsi, static_cast<FPrecision>(0.0)) *
-        thrust::complex<FPrecision>(x, static_cast<FPrecision>(1.0)) / 2.0;
-    thrust::complex<FPrecision> exp_term = thrust::exp(inner_term);
-    return exp_term * exp_term * Faddeeva::erfc(-inner_term);
+  __device__ FPrecision ugly_psi_xi(FPrecision x, FPrecision xsi) {
+    return 1.0 / (1.0 + x * x);
   }
 
   __device__ CrossSectionGridPoint<FPrecision>
@@ -148,11 +142,11 @@ public:
     gn = this->_res_gamma_n[E0_idx];
     gamma = gg + gn;
     FPrecision x = 2 * (energy - E0) / gamma;
-    FPrecision xsi = gamma * sqrt(this->_A / (4.0 * this->_kT * E0));
-    thrust::complex<FPrecision> ugly_part =
-        xsi / (2.0 * sqrt(M_PI)) * this->ugly_psi_xi(x, xsi);
-    FPrecision psi = ugly_part.real();
-    FPrecision xi = ugly_part.imag();
+    // simplify to be: psi = 1/(1+x^2)
+    // xi = x /(1+x^2)
+    FPrecision ugly_part = this->ugly_psi_xi(x, 0.0);
+    FPrecision psi = ugly_part;
+    FPrecision xi = x * ugly_part;
     FPrecision r_inner = (this->_A + 1.0) / this->_A;
     FPrecision r = 2603911.0 / energy * r_inner * r_inner;
     FPrecision q = sqrt(r * this->_sigma_pot);
