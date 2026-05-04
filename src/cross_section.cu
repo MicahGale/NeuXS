@@ -261,6 +261,8 @@ template struct LogarithmicHashAoSView<double>;
 
 template class PiecewiseSlbwModelView<float>;
 template class PiecewiseSlbwModelView<double>;
+template class PiecewiseSlbwModel<float>;
+template class PiecewiseSlbwModel<double>;
 
 template class CrossSection<CrossSectionGridPoint<float>, float>;
 template class CrossSection<CrossSectionGridPoint<double>, double>;
