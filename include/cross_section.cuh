@@ -2,14 +2,15 @@
 #define NEUXS_CROSS_SECTION_CUH
 
 #include <cmath>
-#include <cuComplex.h>
 #include <cuda_runtime.h>
 #include <string>
+#include <thrust/complex.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
 #include <cuco/dynamic_map.cuh>
 
+#include "faddeeva.cuh"
 #include "hdf5.h"
 
 #include "cross_section_reader.h"
@@ -79,7 +80,7 @@ template <typename FPrecision> struct CrossSectionArray {
   FPrecision *_sigma_t;
 };
 
-template <typename FPrecision> struct PiecewiseSlbwModelView {
+template <typename FPrecision> class PiecewiseSlbwModelView {
   /**
     Implementation based on the "Lulu Li notes."
     Li, Lulu. 22.211 Nuclear Reactor Physics I Notes. 2012. archived:
@@ -88,6 +89,8 @@ template <typename FPrecision> struct PiecewiseSlbwModelView {
 private:
   // https://en.wikipedia.org/wiki/Planck_constant
   static constexpr FPrecision PLANCK_CONST = 6.582119e-16; //[eVs]
+  // assume fission cross section is offset of absorption
+  static constexpr FPrecision FISSION_MULTIPLIER = 0.1;
   const FPrecision _A;
   const FPrecision _kT;
   const FPrecision _sigma_pot;
@@ -95,24 +98,31 @@ private:
   const FPrecision *_res_gamma_n;
   const FPrecision *_res_gamma_g;
   const size_t _n_res;
+  const bool _fissile;
 
 public:
   PiecewiseSlbwModelView(FPrecision A, FPrecision kT, FPrecision sigma_pot,
                          FPrecision *_res_E0, FPrecision *res_gamma_n,
-                         FPrecision *res_gamma_g, size_t n_res)
+                         FPrecision *res_gamma_g, size_t n_res, bool fissile)
       : _A(A), _kT(kT), _sigma_pot(sigma_pot), _res_E0(_res_E0),
-        _res_gamma_n(res_gamma_n), _res_gamma_g(res_gamma_g), _n_res(n_res) {}
+        _res_gamma_n(res_gamma_n), _res_gamma_g(res_gamma_g), _n_res(n_res),
+        _fissile(fissile) {}
 
   __device__ size_t searchEnergyGrid(FPrecision energy) const { return 0; };
   __device__ CrossSectionGridPoint<FPrecision>
   getCrossSection(FPrecision energy);
+  __device__ thrust::complex<FPrecision> ugly_psi_xi(FPrecision x,
+                                                     FPrecision xsi);
 };
 
-template <typename FPrecision> struct PiecewiseSlbwModel {
+template <typename FPrecision> class PiecewiseSlbwModel {
   /**
     Implementation based on the "Lulu Li notes."
     Li, Lulu. 22.211 Nuclear Reactor Physics I Notes. 2012. archived:
     <https://archive.org/details/ne-mit-notes-lulu>.
+
+   * Smith, Kord. 22.212 Reactor Physics I: Lecture 2: Resonance Absorption.
+   2017.
    */
 private:
   static constexpr FPrecision R_0 = 1.2e-15; // 1.2 fm
@@ -125,14 +135,15 @@ private:
   const FPrecision *_res_gamma_n;
   const FPrecision *_res_gamma_g;
   const size_t _n_res;
+  bool _fissile;
 
 public:
   using ViewType = PiecewiseSlbwModelView<FPrecision>;
   PiecewiseSlbwModel(FPrecision A, FPrecision temp, FPrecision *_res_E0,
                      FPrecision *res_gamma_n, FPrecision *res_gamma_g,
-                     size_t n_res)
+                     size_t n_res, bool fissile)
       : _A(A), _res_E0(_res_E0), _res_gamma_n(res_gamma_n),
-        _res_gamma_g(res_gamma_g), _n_res(n_res) {
+        _res_gamma_g(res_gamma_g), _n_res(n_res), _fissile(fissile) {
     _kT = temp * BOLTZMANN_CONST;
     // $R = r_0 \sqrt^3{A}$
     FPrecision radius = R_0 * cbrt(A);
