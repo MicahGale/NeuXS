@@ -33,7 +33,7 @@ struct SimpleRNG {
     return static_cast<double>(hi) * (1.0 / static_cast<double>(1ULL << 53));
   }
 
-  // avoid going to the double modules
+  // avoid going to the double modulesunsigned int
   __device__ __forceinline__ float nextFloat() {
     _state = _state * 6364136223846793005ULL + 1442695040888963407ULL;
     uint64_t hi = (_state >> 11);
@@ -70,7 +70,7 @@ template <typename FP> struct Particle {
 template <typename FP>
 __host__ Particle<FP> *
 get_mono_energetic_particles(unsigned int number_of_particles,
-                             unsigned int cell_id);
+                             unsigned int cell_id, unsigned int stride = 10000);
 
 template <typename XSViewType, typename FP>
 __global__ void transport_particles(Particle<FP> *particles, size_t n_particles,

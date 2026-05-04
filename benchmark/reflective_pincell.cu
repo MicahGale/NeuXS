@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
                   "must be more than 1\n");
     return 1;
   }
-
+  neuxs::MemoryManager().printDeviceInfo();
   if (precision == "double")
     return pincell::dispatch_xs<double>(xs_type, number_of_particles,
                                         threads_per_block);
