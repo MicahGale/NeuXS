@@ -14,9 +14,9 @@
 
 int main(int argc, char **argv) {
   if (argc < 5) {
-    std::cerr
-        << "Usage: " << (argc > 0 ? argv[0] : "./app")
-        << " <aos|soa|log|slbw> <double|single> <n_particles> <threads_per_block>\n";
+    std::cerr << "Usage: " << (argc > 0 ? argv[0] : "./app")
+              << " <aos|soa|log|slbw> <double|single> <n_particles> "
+                 "<threads_per_block>\n";
     return 1;
   }
 
@@ -32,9 +32,11 @@ int main(int argc, char **argv) {
   }
 
   if (precision == "double")
-    return pincell::dispatch_xs<double>(xs_type, number_of_particles, threads_per_block);
+    return pincell::dispatch_xs<double>(xs_type, number_of_particles,
+                                        threads_per_block);
   if (precision == "single")
-    return pincell::dispatch_xs<float>(xs_type,  number_of_particles, threads_per_block);
+    return pincell::dispatch_xs<float>(xs_type, number_of_particles,
+                                       threads_per_block);
 
   std::cerr << "Invalid precision: " << precision
             << " (expected double|single)\n";
