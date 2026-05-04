@@ -14,7 +14,7 @@ Particle<FP> *get_mono_energetic_particles(unsigned int number_of_particles,
 
   for (unsigned int i = 0; i < number_of_particles; ++i) {
     particles[i] = Particle<FP>(static_cast<FP>(FISSION_ENERGY), cell_id);
-    particles[i]._rng._state = particles[i]._rng._state + i* stride;
+    particles[i]._rng._state = particles[i]._rng._state + i * stride;
   }
 
   return particles;
@@ -25,9 +25,11 @@ template struct Particle<float>;
 template struct Particle<double>;
 
 template neuxs::Particle<float> *
-neuxs::get_mono_energetic_particles<float>(unsigned int, unsigned int, unsigned int );
+neuxs::get_mono_energetic_particles<float>(unsigned int, unsigned int,
+                                           unsigned int);
 
 template neuxs::Particle<double> *
-neuxs::get_mono_energetic_particles<double>(unsigned int, unsigned int, unsigned int);
+neuxs::get_mono_energetic_particles<double>(unsigned int, unsigned int,
+                                            unsigned int);
 
 } // namespace neuxs
