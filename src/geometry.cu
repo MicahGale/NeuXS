@@ -118,5 +118,7 @@ template struct Cell<SoALinear<float>, float>;
 template struct Cell<SoALinear<double>, double>;
 template struct Cell<LogarithmicHashAoS<float>, float>;
 template struct Cell<LogarithmicHashAoS<double>, double>;
+template struct Cell<PiecewiseSlbwModel<float>, float>;
+template struct Cell<PiecewiseSlbwModel<double>, double>;
 
 } // namespace neuxs

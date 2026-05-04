@@ -21,7 +21,7 @@ __host__ __device__ NuclideComponent<FPrecision>::NuclideComponent(
     const char *name, size_t A, FPrecision atom_density, FPrecision temperature,
     bool allow_fission)
     : _name(name), _atom_dens(atom_density), _temperature(temperature),
-      _allows_fission(allow_fission) {
+      _allows_fission(allow_fission), _A(A) {
   FPrecision fraction =
       static_cast<FPrecision>(A - 1) / static_cast<FPrecision>(A + 1);
   this->_alpha = fraction * fraction;
@@ -105,6 +105,8 @@ template struct MaterialView<SoALinearView<float>, float>;
 template struct MaterialView<SoALinearView<double>, double>;
 template struct MaterialView<LogarithmicHashAoSView<float>, float>;
 template struct MaterialView<LogarithmicHashAoSView<double>, double>;
+template struct MaterialView<PiecewiseSlbwModelView<float>, float>;
+template struct MaterialView<PiecewiseSlbwModelView<double>, double>;
 
 template class Material<AoSLinear<float>, float>;
 template class Material<AoSLinear<double>, double>;
@@ -112,5 +114,7 @@ template class Material<SoALinear<float>, float>;
 template class Material<SoALinear<double>, double>;
 template class Material<LogarithmicHashAoS<float>, float>;
 template class Material<LogarithmicHashAoS<double>, double>;
+template class Material<PiecewiseSlbwModel<float>, float>;
+template class Material<PiecewiseSlbwModel<double>, double>;
 
 } // namespace neuxs

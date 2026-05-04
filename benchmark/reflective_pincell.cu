@@ -14,9 +14,9 @@
 
 int main(int argc, char **argv) {
   if (argc < 5) {
-    std::cerr
-        << "Usage: " << (argc > 0 ? argv[0] : "./app")
-        << " <aos|soa|log> <double|single> <n_particles> <threads_per_block>\n";
+    std::cerr << "Usage: " << (argc > 0 ? argv[0] : "./app")
+              << " <aos|soa|log|slbw> <double|single> <n_particles> "
+                 "<threads_per_block>\n";
     return 1;
   }
 

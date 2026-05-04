@@ -132,7 +132,14 @@ int dispatch_xs(std::string_view xs_type, int n_particles,
                           neuxs::LogarithmicHashAoS<FPrecision>, FPrecision>(
         n_particles, threads_per_block);
   }
-  std::cerr << "Invalid XS type: " << xs_type << " (expected aos|soa|log)\n";
+  if (xs_type == "slbw") {
+    std::cout << "Using SLBW\n";
+    return run_simulation<neuxs::PiecewiseSlbwModelView<FPrecision>,
+                          neuxs::PiecewiseSlbwModel<FPrecision>, FPrecision>(
+        n_particles, threads_per_block);
+  }
+  std::cerr << "Invalid XS type: " << xs_type
+            << " (expected aos|soa|log|slbw)\n";
   return 1;
 }
 

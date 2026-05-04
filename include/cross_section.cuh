@@ -1,13 +1,16 @@
 #ifndef NEUXS_CROSS_SECTION_CUH
 #define NEUXS_CROSS_SECTION_CUH
 
+#include <cmath>
 #include <cuda_runtime.h>
 #include <string>
+#include <thrust/complex.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
 #include <cuco/dynamic_map.cuh>
 
+#include "faddeeva.cuh"
 #include "hdf5.h"
 
 #include "cross_section_reader.h"
@@ -75,6 +78,132 @@ template <typename FPrecision> struct CrossSectionArray {
   FPrecision *_sigma_f;
   FPrecision *_sigma_c;
   FPrecision *_sigma_t;
+};
+
+template <typename FPrecision> class PiecewiseSlbwModelView {
+  /**
+    Implementation based on the "Lulu Li notes."
+    Li, Lulu. 22.211 Nuclear Reactor Physics I Notes. 2012. archived:
+    <https://archive.org/details/ne-mit-notes-lulu>.
+   */
+private:
+  // https://en.wikipedia.org/wiki/Planck_constant
+  static constexpr FPrecision PLANCK_CONST = 6.582119e-16; //[eVs]
+  // assume fission cross section is offset of absorption
+  static constexpr FPrecision FISSION_MULTIPLIER = 0.1;
+  FPrecision _A{0};
+  FPrecision _kT{0};
+  FPrecision _sigma_pot{0};
+  FPrecision *_res_E0{nullptr};
+  FPrecision *_res_gamma_n{nullptr};
+  FPrecision *_res_gamma_g{nullptr};
+  size_t _n_res{0};
+  bool _fissile{false};
+
+public:
+  PiecewiseSlbwModelView() = default;
+  PiecewiseSlbwModelView(FPrecision A, FPrecision kT, FPrecision sigma_pot,
+                         FPrecision *_res_E0, FPrecision *res_gamma_n,
+                         FPrecision *res_gamma_g, size_t n_res, bool fissile)
+      : _A(A), _kT(kT), _sigma_pot(sigma_pot), _res_E0(_res_E0),
+        _res_gamma_n(res_gamma_n), _res_gamma_g(res_gamma_g), _n_res(n_res),
+        _fissile(fissile) {}
+
+  __device__ size_t searchEnergyGrid(FPrecision energy) const {
+    if (energy <= _res_E0[0])
+      return 0;
+    if (energy >= _res_E0[_n_res - 1])
+      return _n_res - 2;
+
+    size_t lo = 0;
+    size_t hi = _n_res - 1;
+    while (hi - lo > 1) {
+      size_t mid = (lo + hi) >> 1;
+      if (_res_E0[mid] <= energy)
+        lo = mid;
+      else
+        hi = mid;
+    }
+    // find nearest resonance
+    if ((energy - _res_E0[lo]) <= (_res_E0[hi] - energy))
+      return lo;
+    return hi;
+  };
+  __device__ FPrecision ugly_psi_xi(FPrecision x, FPrecision xsi) {
+    return 1.0 / (1.0 + x * x);
+  }
+
+  __device__ CrossSectionGridPoint<FPrecision>
+  getCrossSection(FPrecision energy) {
+    size_t E0_idx = this->searchEnergyGrid(energy);
+    FPrecision E0 = this->_res_E0[E0_idx];
+    FPrecision gg, gn, gamma;
+    gg = this->_res_gamma_g[E0_idx];
+    gn = this->_res_gamma_n[E0_idx];
+    gamma = gg + gn;
+    FPrecision x = 2 * (energy - E0) / gamma;
+    // simplify to be: psi = 1/(1+x^2)
+    // xi = x /(1+x^2)
+    FPrecision ugly_part = this->ugly_psi_xi(x, 0.0);
+    FPrecision psi = ugly_part;
+    FPrecision xi = x * ugly_part;
+    FPrecision r_inner = (this->_A + 1.0) / this->_A;
+    FPrecision r = 2603911.0 / energy * r_inner * r_inner;
+    FPrecision q = sqrt(r * this->_sigma_pot);
+    FPrecision sigma_capture = sqrt(E0 / energy) * gn / gamma * gg * r * psi;
+    FPrecision sigma_scatter =
+        gn * gn / (gamma * gamma) * (r * psi + q * xi) + this->_sigma_pot;
+    FPrecision sigma_f =
+        (this->_fissile) ? sigma_capture * this->FISSION_MULTIPLIER : 0.0;
+    return CrossSectionGridPoint<FPrecision>(sigma_scatter, sigma_f,
+                                             sigma_capture);
+  }
+};
+
+template <typename FPrecision> class PiecewiseSlbwModel {
+  /**
+    Implementation based on the "Lulu Li notes."
+    Li, Lulu. 22.211 Nuclear Reactor Physics I Notes. 2012. archived:
+    <https://archive.org/details/ne-mit-notes-lulu>.
+
+   * Smith, Kord. 22.212 Reactor Physics I: Lecture 2: Resonance Absorption.
+   2017.
+   */
+private:
+  static constexpr FPrecision R_0 = 1.2e-15; // 1.2 fm
+  // https://en.wikipedia.org/wiki/Boltzmann_constant
+  static constexpr FPrecision BOLTZMANN_CONST = 8.617333e-5; // eV/K
+
+  FPrecision _A{0};
+  FPrecision _kT{0};
+  FPrecision _sigma_pot{0};
+  size_t _n_res{0};
+  bool _fissile{false};
+
+  FPrecision *_res_E0_host{nullptr};
+  FPrecision *_res_gamma_n_host{nullptr};
+  FPrecision *_res_gamma_g_host{nullptr};
+
+  DeviceBuffer<FPrecision> _d_res_E0;
+  DeviceBuffer<FPrecision> _d_res_gamma_n;
+  DeviceBuffer<FPrecision> _d_res_gamma_g;
+
+  bool _uploaded{false};
+  PiecewiseSlbwModelView<FPrecision> _cached_view;
+
+public:
+  using ViewType = PiecewiseSlbwModelView<FPrecision>;
+
+  PiecewiseSlbwModel() = default;
+  ~PiecewiseSlbwModel() {
+    delete[] _res_E0_host;
+    delete[] _res_gamma_n_host;
+    delete[] _res_gamma_g_host;
+  }
+
+  void setCrossSection(const OpenMCCrossSectionReader &reader,
+                       NuclideComponent<FPrecision> &nuclide);
+  ViewType uploadToDevice();
 };
 
 template <typename FPrecision> struct HashGrid {
