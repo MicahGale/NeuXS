@@ -36,7 +36,7 @@ template <typename FPrecision> struct PinCell {
 };
 
 template <typename XSDataViewType, typename XSDataStruct, typename FPrecision>
-int run_simulation() {
+int run_simulation(int number_of_particles, int threads_per_block) {
   using Isotope = neuxs::NuclideComponent<FPrecision>;
   using Cell = neuxs::Cell<XSDataStruct, FPrecision>;
   using Material = neuxs::Material<XSDataStruct, FPrecision>;
@@ -44,6 +44,7 @@ int run_simulation() {
   using CellViewType = neuxs::CellView<XSDataViewType, FPrecision>;
 
   neuxs::MemoryManager memory_manager;
+  neuxs::StopWatch gpu_timer;
 
   neuxs::OpenMCCrossSectionReader reader;
   pincell::PinCell<FPrecision> pincell;
@@ -78,7 +79,6 @@ int run_simulation() {
   auto device_cladding_cell = cladding_cell.uploadToDevice();
   auto device_moderator_cell = moderator_cell.uploadToDevice();
 
-  const size_t number_of_particles = 512;
   Particle *host_particles = neuxs::get_mono_energetic_particles<FPrecision>(
       number_of_particles, fuel_cell._id);
 
@@ -99,29 +99,38 @@ int run_simulation() {
   CellViewType **d_cell_ptrs =
       memory_manager.allocateDevice<CellViewType *>(n_cells);
   memory_manager.copyToDevice(h_cell_ptrs, d_cell_ptrs, n_cells);
+  gpu_timer.startClock();
   neuxs::transport_particles<<<blocks, threads>>>(
       device_particles, number_of_particles, d_cell_ptrs, n_cells);
+  auto time_elapsed = gpu_timer.stopClock();
+
+  printf("Time taken = %f milli second\n", time_elapsed);
 
   return 0;
 
   // I will worry about the cleanup later
 }
 
-template <typename FPrecision> int dispatch_xs(std::string_view xs_type) {
+template <typename FPrecision>
+int dispatch_xs(std::string_view xs_type, int n_particles,
+                int threads_per_block) {
   if (xs_type == "aos") {
     std::cout << "Using AoSLinear\n";
     return run_simulation<neuxs::AoSLinearView<FPrecision>,
-                          neuxs::AoSLinear<FPrecision>, FPrecision>();
+                          neuxs::AoSLinear<FPrecision>, FPrecision>(
+        n_particles, threads_per_block);
   }
   if (xs_type == "soa") {
     std::cout << "Using SoALinear\n";
     return run_simulation<neuxs::SoALinearView<FPrecision>,
-                          neuxs::SoALinear<FPrecision>, FPrecision>();
+                          neuxs::SoALinear<FPrecision>, FPrecision>(
+        n_particles, threads_per_block);
   }
   if (xs_type == "log") {
     std::cout << "Using LogarithmicHashAoS\n";
     return run_simulation<neuxs::LogarithmicHashAoSView<FPrecision>,
-                          neuxs::LogarithmicHashAoS<FPrecision>, FPrecision>();
+                          neuxs::LogarithmicHashAoS<FPrecision>, FPrecision>(
+        n_particles, threads_per_block);
   }
   std::cerr << "Invalid XS type: " << xs_type << " (expected aos|soa|log)\n";
   return 1;
