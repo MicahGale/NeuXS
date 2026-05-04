@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=0
 #SBATCH --cpus-per-task=1
-#SBATCH --time=0-04:00:00
+#SBATCH --time=0-00:45:00
 #SBATCH --gres=gpu:1
 #SBATCH --output=pincell_benchmark.%j.out
 #SBATCH --error=pincell_benchmark.%j.err
