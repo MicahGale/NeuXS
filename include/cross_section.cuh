@@ -91,16 +91,17 @@ private:
   static constexpr FPrecision PLANCK_CONST = 6.582119e-16; //[eVs]
   // assume fission cross section is offset of absorption
   static constexpr FPrecision FISSION_MULTIPLIER = 0.1;
-  const FPrecision _A;
-  const FPrecision _kT;
-  const FPrecision _sigma_pot;
-  const FPrecision *_res_E0;
-  const FPrecision *_res_gamma_n;
-  const FPrecision *_res_gamma_g;
-  const size_t _n_res;
-  const bool _fissile;
+  FPrecision _A{0};
+  FPrecision _kT{0};
+  FPrecision _sigma_pot{0};
+  FPrecision *_res_E0{nullptr};
+  FPrecision *_res_gamma_n{nullptr};
+  FPrecision *_res_gamma_g{nullptr};
+  size_t _n_res{0};
+  bool _fissile{false};
 
 public:
+  PiecewiseSlbwModelView() = default;
   PiecewiseSlbwModelView(FPrecision A, FPrecision kT, FPrecision sigma_pot,
                          FPrecision *_res_E0, FPrecision *res_gamma_n,
                          FPrecision *res_gamma_g, size_t n_res, bool fissile)
