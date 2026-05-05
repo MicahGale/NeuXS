@@ -87,8 +87,8 @@ int run_simulation(int number_of_particles, int threads_per_block) {
   memory_manager.copyToDevice(host_particles, device_particles,
                               number_of_particles);
 
-  const size_t n_cells = 4;
-  int threads = 256;
+  const size_t n_cells = 3;
+  int threads = threads_per_block;
   int blocks = (number_of_particles + threads - 1) / threads;
   CellViewType *h_cell_ptrs[n_cells] = {
       device_fuel_cell,     // id = 0
